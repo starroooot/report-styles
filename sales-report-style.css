@@ -115,9 +115,12 @@ tbody tr:nth-child(even) { background: #faf8f3; }
   h1 { font-size: 17px; }
   h2 { font-size: 15px; }
 
-  /* 전사 요약 카드: 3열 → 1열 */
-  .summary-grid { grid-template-columns: 1fr; }
-  .summary-card .value { font-size: 22px; }
+  /* 전사 요약 카드: 3열 유지, 크기만 축소 */
+  .summary-grid { gap: 6px; }
+  .summary-card { padding: 8px 10px; }
+  .summary-card .label { font-size: 11px; }
+  .summary-card .value { font-size: 16px; }
+  .summary-card .sub { font-size: 11px; }
 
   /* 테이블: 가로 스크롤 허용 */
   table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
