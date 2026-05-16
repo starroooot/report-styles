@@ -107,3 +107,24 @@ tbody tr:nth-child(even) { background: #faf8f3; }
 
 .store-section details > p  { padding: 10px 20px;        margin: 0; background: #fff; }
 .store-section details > ul { padding: 10px 14px 10px 34px; margin: 0; background: #fff; }
+
+/* --- 모바일 대응 --- */
+@media (max-width: 600px) {
+  body { padding: 16px; }
+
+  h1 { font-size: 17px; }
+  h2 { font-size: 15px; }
+
+  /* 전사 요약 카드: 3열 → 1열 */
+  .summary-grid { grid-template-columns: 1fr; }
+  .summary-card .value { font-size: 22px; }
+
+  /* 테이블: 가로 스크롤 허용 */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* 아코디언 */
+  .store-section summary { font-size: 12px; padding: 9px 10px; }
+  .store-section details > p  { padding: 10px 14px; }
+  .store-section details > ul { padding: 10px 12px 10px 28px; }
+  li { font-size: 12px; }
+}
