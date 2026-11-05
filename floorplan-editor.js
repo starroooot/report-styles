@@ -647,14 +647,16 @@ function drawPlan(pptx,slide,stores,box,opt={}){
     points[0]={x:points[0].x,y:points[0].y};
     slide.addShape(pptx.ShapeType.custGeom,Object.assign({x:x0,y:y0,w:Math.max(x1-x0,0.01),h:Math.max(y1-y0,0.01),points},o))};
   /* 1) 시설(매장 아래) */
-  FACILITIES.forEach(f=>poly([[flatten(f.v)]],{fill:{color:FAC_FILL(f)},line:{color:'888888',width:0.25},objectName:f.space_nm}));
+  /* opt.fac=false: 시설 제외 / opt.flow=false: 이동 시설(에스컬레이터·보이드·엘리베이터) 제외. 엘리베이터는 화면과 같이 이동 시설로 본다 */
+  const showFac=f=>IS_ELEV(f)?opt.flow!==false:opt.fac!==false;
+  FACILITIES.filter(showFac).forEach(f=>poly([[flatten(f.v)]],{fill:{color:FAC_FILL(f)},line:{color:'888888',width:0.25},objectName:f.space_nm}));
   /* 시설 이름(일정 크기 이상만, 회색 작은 글씨) */
-  if(opt.facLabel)FACILITIES.forEach(f=>{const G=[[flatten(f.v)]];if(areaOf(G)<12)return;const tmp=el('path',{d:pathOf(f.v)},svg),L=labelPoint(tmp,f.v);tmp.remove();
+  if(opt.facLabel)FACILITIES.filter(showFac).forEach(f=>{const G=[[flatten(f.v)]];if(areaOf(G)<12)return;const tmp=el('path',{d:pathOf(f.v)},svg),L=labelPoint(tmp,f.v);tmp.remove();
     const t=IS_ELEV(f)?'EV':f.space_nm.replace(/^([A-Z]\d+|\d+F)_/,''),fs=Math.max(4.5,Math.min(7,L.r*2*sc*72/Math.max(emw(t),1)*0.9)),cx=ox+(L.pt[0]-ext[0])*sc,cy=oy+(L.pt[1]-ext[1])*sc,tw=emw(t)*fs/72*1.1+0.05;
     slide.addText(t,{x:cx-tw/2,y:cy-fs/72*0.75,w:tw,h:fs/72*1.5,fontFace:PFONT,fontSize:Math.round(fs*2)/2,color:'666666',align:'center',valign:'middle',margin:0,wrap:false,objectName:'시설 '+t})});
-  FLOW.voids.forEach(v=>{const Q=v.map(P),x0=Math.min(...Q.map(p=>p[0])),y0=Math.min(...Q.map(p=>p[1])),x1=Math.max(...Q.map(p=>p[0])),y1=Math.max(...Q.map(p=>p[1]));
+  if(opt.flow!==false)FLOW.voids.forEach(v=>{const Q=v.map(P),x0=Math.min(...Q.map(p=>p[0])),y0=Math.min(...Q.map(p=>p[1])),x1=Math.max(...Q.map(p=>p[0])),y1=Math.max(...Q.map(p=>p[1]));
     slide.addText('OPEN',{shape:pptx.ShapeType.rect,x:x0,y:y0,w:x1-x0,h:y1-y0,fill:{color:'FFFFFF'},line:{color:'7A8794',width:0.75,dashType:'dash'},fontFace:PFONT,fontSize:7,color:'7A8794',align:'center',valign:'middle',margin:0,objectName:'보이드'})});
-  FLOW.esc.forEach(e=>{const a=P([e.b[0],e.b[3]]),b=P([e.b[2],e.b[1]]);
+  if(opt.flow!==false)FLOW.esc.forEach(e=>{const a=P([e.b[0],e.b[3]]),b=P([e.b[2],e.b[1]]);
     slide.addText('E/S'+(e.dir==='UP'?' ▲':e.dir==='DN'?' ▼':''),{shape:pptx.ShapeType.rect,x:a[0],y:a[1],w:b[0]-a[0],h:b[1]-a[1],fill:{color:'FFFFFF'},line:{color:'3A4A5C',width:0.5},fontFace:PFONT,fontSize:6,bold:true,color:'1F2D3D',align:'center',valign:'middle',margin:0,objectName:'에스컬레이터'})});
   /* 2) 매장(큰 매장 먼저 → 작은 매장이 위에) */
   const changed=opt.changed||new Set();
@@ -688,11 +690,12 @@ async function savePPT(){
     let s=pptx.addSlide();
     s.addText(FLOOR_ID+(hasChg?' 아이디어':''),{x:1.17,y:1.23,w:11,h:2.61,fontFace:PFONT,fontSize:48,align:'center',valign:'bottom',color:'000000',margin:0});
     s.addText([FLOOR_FULL!==FLOOR_ID?FLOOR_FULL+'\n':'',name?`${name}  ·  `:'',`${today}`].join(''),{x:1.17,y:3.94,w:11,h:1.81,fontFace:PFONT,fontSize:24,align:'center',valign:'top',color:'595959',margin:0});
-    /* 2. 아이디어 도면(크게) */
-    s=pptx.addSlide();titleOf(pptx,s,`${hasChg?'아이디어 도면':'도면'}${name?' – '+name:''}`);
-    drawPlan(pptx,s,state.stores,{x:0.4,y:1.45,w:12.53,h:5.3},{changed,maxFont:12,facLabel:true});
-    s.addText(hasChg?[{text:'━ ━ ',options:{color:'B4005A',bold:true}},{text:'아이디어 모드에서 바뀐 매장  ·  도면 단위 cm(공간관리시스템 좌표)  ·  시뮬레이션이며 원본 도면에는 반영되지 않음',options:{color:'595959'}}]:[{text:'도면 단위 cm(공간관리시스템 좌표)',options:{color:'595959'}}],
-      {x:0.6,y:6.85,w:12.13,h:0.35,fontFace:PFONT,fontSize:10,margin:0});
+    /* 2~4. 도면 3종: ① 현재 그대로 ② 시설 제외 ③ 시설·이동 시설 제외 */
+    const VERS=[['',{fac:true,flow:true}],['시설 제외',{fac:false,flow:true}],['시설·이동 시설 제외',{fac:false,flow:false}]];
+    VERS.forEach(([sub,o])=>{s=pptx.addSlide();titleOf(pptx,s,`${hasChg?'아이디어 도면':'도면'}${sub?' ('+sub+')':''}${name?' – '+name:''}`);
+      drawPlan(pptx,s,state.stores,{x:0.4,y:1.45,w:12.53,h:5.3},Object.assign({changed,maxFont:12,facLabel:true},o));
+      s.addText(hasChg?[{text:'━ ━ ',options:{color:'B4005A',bold:true}},{text:'아이디어 모드에서 바뀐 매장  ·  도면 단위 cm(공간관리시스템 좌표)  ·  시뮬레이션이며 원본 도면에는 반영되지 않음',options:{color:'595959'}}]:[{text:'도면 단위 cm(공간관리시스템 좌표)',options:{color:'595959'}}],
+        {x:0.6,y:6.85,w:12.13,h:0.35,fontFace:PFONT,fontSize:10,margin:0})});
     const A=d=>r2(areaNow(d));
     if(hasChg){
     /* 3. 변경 전/후 비교 */
