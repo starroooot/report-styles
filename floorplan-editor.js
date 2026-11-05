@@ -1,10 +1,10 @@
 /*!
- * floorplan-editor.js  v20261105
+ * floorplan-editor.js  v20261105b
  * 신세계 공간관리시스템 도면(HTML) 아이디어 모드 드라이버
  *  - 합치기 · 분할 · 모양 편집 · 매장 삽입/이동 · 맞춤 안내선 · 되돌리기
  *  - 편집 도면 저장(HTML) · 불러오기(JSON) · CSV/JSON · PowerPoint(도형) 저장
  * 사용: 도면 HTML의 본문 스크립트(SPACES·FLOW·Store·Plan) 뒤에 넣는다.
- *   <script src="https://cdn.jsdelivr.net/gh/starroooot/report-styles@main/floorplan-editor.js?v=20261105"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/starroooot/report-styles@main/floorplan-editor.js?v=20261105b"></script>
  * 편집 도면 저장(HTML)을 쓰려면 본문 스크립트 앞에 아래 두 줄이 있어야 한다.
  *   <script id="snap">window.__SRC=document.documentElement.outerHTML;</script>
  *   <script id="saved-state" type="application/json">null</script>
@@ -43,19 +43,31 @@
 
 
 ;(function(){
-if(window.__FP_EDITOR__)return;window.__FP_EDITOR__='20261105';
+if(window.__FP_EDITOR__)return;window.__FP_EDITOR__='20261105b';
 if(typeof Plan==='undefined'||typeof Store==='undefined'||typeof SPACES==='undefined'){console.error('[floorplan-editor] 도면 본문 스크립트(SPACES·Store·Plan)를 찾지 못했습니다. 이 스크립트는 본문 스크립트 뒤에 넣어야 합니다.');return}
 
 /* ----- 1) 화면 요소(스타일·버튼·도구 막대) 넣기 ----- */
-const st=document.createElement('style');st.id='fp-editor-style';st.textContent="\n/* 편집 모드 */\n#edbar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#fff8f9;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.editing #edbar{display:flex}\n#edbar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#edbar button:hover:not(:disabled){background:#f0f0f0}#edbar button:disabled{opacity:.4;cursor:default}\n#edbar button.pri{background:var(--accent);border-color:var(--accent);color:#fff}#edbar button.pri:hover:not(:disabled){background:#a50d26}\n#edbar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #eadadd}#edbar .grp:last-child{border-right:0}\n#edSel{font-weight:700;color:#1d5bd8;min-width:150px}#edRatioT{font-variant-numeric:tabular-nums;min-width:56px;display:inline-block}\n#edbar .note{color:#999;font-size:11px;margin-left:auto}\n#edToggle{border-color:var(--accent)!important;color:var(--accent)}body.editing #edToggle{background:var(--accent)!important;color:#fff}\n.store{fill-rule:evenodd}.store.edited{stroke:#b4005a;stroke-dasharray:70 35;stroke-width:22}\nbody.editing .store{cursor:copy}.store.picked{stroke:#1d5bd8!important;stroke-width:46!important;stroke-dasharray:none;filter:brightness(.95)}\ntr.row.picked{background:#e8f0ff}tr.row.edited td:first-child{color:#b4005a;font-weight:700}\n#edit-layer{pointer-events:none}.cut{stroke:#c8102e;stroke-width:22;stroke-dasharray:60 40}\n.pv{stroke:none;opacity:.28}.pv0{fill:#1d5bd8}.pv1{fill:#f08a00}\n.pvt{text-anchor:middle;dominant-baseline:middle;font-weight:700;fill:#111;paint-order:stroke;stroke:#fff;stroke-width:16}\n#orig-layer{pointer-events:none}.orig{fill:none;stroke:#5a6b7d;stroke-width:12;stroke-dasharray:24 24}\n#edLog{margin:0 0 14px;padding-left:0;list-style:none;font-size:12px}#edLog li{padding:5px 0;border-bottom:1px dashed #eee}\n#logbox{display:none}body.editing #logbox,#logbox.has{display:block}\n\n#shapebar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#f2f6ff;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.shaping #edbar{display:none}body.shaping #shapebar{display:flex}\n#shapebar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#shapebar button:hover:not(:disabled){background:#f0f0f0}#shapebar button:disabled{opacity:.4;cursor:default}\n#shapebar button.pri{background:#1d5bd8;border-color:#1d5bd8;color:#fff}\n#shapebar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #d6dff0}\n#shapebar .c,#edbar .c{color:#777;font-size:12px}\n#shWarn{color:#c8102e;font-weight:700}\n#shape-layer .sh-v{fill:#fff;stroke:#1d5bd8;cursor:move;pointer-events:all}#shape-layer .sh-v:hover{fill:#1d5bd8}\n#shape-layer .sh-e{fill:#1d5bd8;stroke:#fff;pointer-events:all}#shape-layer .sh-e:hover,#shape-layer .sh-e.on{fill:#f08a00}\n#shape-layer .sh-base{fill:none;stroke:#5a6b7d;pointer-events:none}\n#shape-layer .sh-out{fill:none;stroke:#1d5bd8;pointer-events:none}#shape-layer .sh-out.bad{stroke:#c8102e}\n#shape-layer .sh-sel{stroke:#f08a00;pointer-events:none}\n#shape-layer .sh-hit{fill:#c8102e;opacity:.55;pointer-events:none}\n#shape-layer .sh-len{fill:#1d5bd8;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;pointer-events:none}\nbody.shaping .store{cursor:default}\n\n#insbar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#effaf2;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.inserting #edbar{display:none}body.inserting #insbar{display:flex}\n#insbar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#insbar button:disabled{opacity:.4;cursor:default}#insbar button.pri{background:#1a7f37;border-color:#1a7f37;color:#fff}\n#insbar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #cfe6d6}#insbar .c{color:#777;font-size:12px}\n#insWarn{color:#c8102e;font-weight:700}\n#insert-layer .ins-cap{fill:transparent;pointer-events:all;cursor:crosshair}\n#insert-layer .ins-shape{fill:#1a7f37;fill-opacity:.22;stroke:#1a7f37;pointer-events:none}#insert-layer .ins-shape.bad{stroke:#c8102e;fill:#c8102e}\n#insert-layer .ins-line{fill:none;stroke:#1a7f37;stroke-dasharray:8 5;pointer-events:none}\n#insert-layer .ins-v{fill:#fff;stroke:#1a7f37;pointer-events:none}#insert-layer .ins-v.first{fill:#1a7f37}\n#insert-layer .sh-hit{fill:#c8102e;opacity:.55;pointer-events:none}\n#insert-layer .sh-len{fill:#1a7f37;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;pointer-events:none}\n\n.guide{stroke:#e3008c;pointer-events:none}.guide-pt{fill:#e3008c;pointer-events:none}\n.dim{stroke:#e3008c;pointer-events:none}.dim-t{fill:#e3008c;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;pointer-events:none}\n#move-layer{pointer-events:none}#move-layer .sh-hit{fill:#c8102e;opacity:.55}\nbody.editing .store.movable{cursor:move}\n";document.head.appendChild(st);
+const st=document.createElement('style');st.id='fp-editor-style';st.textContent=`
+#hdPPT{height:28px;padding:0 12px;border:1px solid #1d5bd8;border-radius:6px;background:#fff;color:#1d5bd8;cursor:pointer;font-size:13px;font-weight:700}#hdPPT:hover:not(:disabled){background:#eef3ff}#hdPPT:disabled{opacity:.5}
+#fpDlg{border:1px solid #ccc;border-radius:10px;padding:18px 20px;min-width:340px;max-width:92vw;font-size:13px;box-shadow:0 10px 40px rgba(0,0,0,.25)}#fpDlg::backdrop{background:rgba(0,0,0,.3)}
+#fpDlg h3{margin:0 0 6px;font-size:15px}#fpDlg p.c{margin:0 0 10px;color:#777;font-size:12px}
+#fpDlg fieldset{border:1px solid #e3e3e3;border-radius:8px;margin:0 0 10px;padding:8px 12px 10px}#fpDlg legend{font-weight:700;color:#c8102e;padding:0 4px}
+#fpDlg label{display:flex;align-items:center;gap:8px;margin:6px 0}#fpDlg label input{flex:1;height:30px;padding:0 8px;border:1px solid #ccc;border-radius:6px;font-size:13px}
+#fpDlg .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}#fpDlg button{height:30px;padding:0 14px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;font-size:13px}
+#fpDlg button.pri{background:#c8102e;border-color:#c8102e;color:#fff}
+`+"\n/* 편집 모드 */\n#edbar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#fff8f9;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.editing #edbar{display:flex}\n#edbar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#edbar button:hover:not(:disabled){background:#f0f0f0}#edbar button:disabled{opacity:.4;cursor:default}\n#edbar button.pri{background:var(--accent);border-color:var(--accent);color:#fff}#edbar button.pri:hover:not(:disabled){background:#a50d26}\n#edbar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #eadadd}#edbar .grp:last-child{border-right:0}\n#edSel{font-weight:700;color:#1d5bd8;min-width:150px}#edRatioT{font-variant-numeric:tabular-nums;min-width:56px;display:inline-block}\n#edbar .note{color:#999;font-size:11px;margin-left:auto}\n#edToggle{border-color:var(--accent)!important;color:var(--accent)}body.editing #edToggle{background:var(--accent)!important;color:#fff}\n.store{fill-rule:evenodd}.store.edited{stroke:#b4005a;stroke-dasharray:70 35;stroke-width:22}\nbody.editing .store{cursor:copy}.store.picked{stroke:#1d5bd8!important;stroke-width:46!important;stroke-dasharray:none;filter:brightness(.95)}\ntr.row.picked{background:#e8f0ff}tr.row.edited td:first-child{color:#b4005a;font-weight:700}\n#edit-layer{pointer-events:none}.cut{stroke:#c8102e;stroke-width:22;stroke-dasharray:60 40}\n.pv{stroke:none;opacity:.28}.pv0{fill:#1d5bd8}.pv1{fill:#f08a00}\n.pvt{text-anchor:middle;dominant-baseline:middle;font-weight:700;fill:#111;paint-order:stroke;stroke:#fff;stroke-width:16}\n#orig-layer{pointer-events:none}.orig{fill:none;stroke:#5a6b7d;stroke-width:12;stroke-dasharray:24 24}\n#edLog{margin:0 0 14px;padding-left:0;list-style:none;font-size:12px}#edLog li{padding:5px 0;border-bottom:1px dashed #eee}\n#logbox{display:none}body.editing #logbox,#logbox.has{display:block}\n\n#shapebar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#f2f6ff;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.shaping #edbar{display:none}body.shaping #shapebar{display:flex}\n#shapebar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#shapebar button:hover:not(:disabled){background:#f0f0f0}#shapebar button:disabled{opacity:.4;cursor:default}\n#shapebar button.pri{background:#1d5bd8;border-color:#1d5bd8;color:#fff}\n#shapebar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #d6dff0}\n#shapebar .c,#edbar .c{color:#777;font-size:12px}\n#shWarn{color:#c8102e;font-weight:700}\n#shape-layer .sh-v{fill:#fff;stroke:#1d5bd8;cursor:move;pointer-events:all}#shape-layer .sh-v:hover{fill:#1d5bd8}\n#shape-layer .sh-e{fill:#1d5bd8;stroke:#fff;pointer-events:all}#shape-layer .sh-e:hover,#shape-layer .sh-e.on{fill:#f08a00}\n#shape-layer .sh-base{fill:none;stroke:#5a6b7d;pointer-events:none}\n#shape-layer .sh-out{fill:none;stroke:#1d5bd8;pointer-events:none}#shape-layer .sh-out.bad{stroke:#c8102e}\n#shape-layer .sh-sel{stroke:#f08a00;pointer-events:none}\n#shape-layer .sh-hit{fill:#c8102e;opacity:.55;pointer-events:none}\n#shape-layer .sh-len{fill:#1d5bd8;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;pointer-events:none}\nbody.shaping .store{cursor:default}\n\n#insbar{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:#effaf2;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}\nbody.inserting #edbar{display:none}body.inserting #insbar{display:flex}\n#insbar button{height:28px;padding:0 10px;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer}\n#insbar button:disabled{opacity:.4;cursor:default}#insbar button.pri{background:#1a7f37;border-color:#1a7f37;color:#fff}\n#insbar .grp{display:flex;gap:6px;align-items:center;padding-right:10px;border-right:1px solid #cfe6d6}#insbar .c{color:#777;font-size:12px}\n#insWarn{color:#c8102e;font-weight:700}\n#insert-layer .ins-cap{fill:transparent;pointer-events:all;cursor:crosshair}\n#insert-layer .ins-shape{fill:#1a7f37;fill-opacity:.22;stroke:#1a7f37;pointer-events:none}#insert-layer .ins-shape.bad{stroke:#c8102e;fill:#c8102e}\n#insert-layer .ins-line{fill:none;stroke:#1a7f37;stroke-dasharray:8 5;pointer-events:none}\n#insert-layer .ins-v{fill:#fff;stroke:#1a7f37;pointer-events:none}#insert-layer .ins-v.first{fill:#1a7f37}\n#insert-layer .sh-hit{fill:#c8102e;opacity:.55;pointer-events:none}\n#insert-layer .sh-len{fill:#1a7f37;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;pointer-events:none}\n\n.guide{stroke:#e3008c;pointer-events:none}.guide-pt{fill:#e3008c;pointer-events:none}\n.dim{stroke:#e3008c;pointer-events:none}.dim-t{fill:#e3008c;font-weight:700;dominant-baseline:middle;paint-order:stroke;stroke:#fff;pointer-events:none}\n#move-layer{pointer-events:none}#move-layer .sh-hit{fill:#c8102e;opacity:.55}\nbody.editing .store.movable{cursor:move}\n";document.head.appendChild(st);
 const H=(html)=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content};
 const header=document.querySelector('header'),mainEl=document.querySelector('main');
 const upd=header.querySelector('.upd');header.insertBefore(H("<button id=\"edToggle\" class=\"ctl\" style=\"height:28px;padding:0 12px;border:1px solid;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-weight:700\">✎ 아이디어 모드</button>\n"),upd||null);
+document.getElementById('edToggle').after(H('<button id="hdPPT" title="지금 화면의 도면을 PowerPoint(도형)로 내보내기">PPT로 내보내기</button>'));
 const tag0=header.querySelector('.tag');tag0?tag0.after(H("<span id=\"planTag\" class=\"tag\" style=\"display:none;border-color:#1d5bd8;color:#1d5bd8\"></span>")):header.querySelector('h1').after(H("<span id=\"planTag\" class=\"tag\" style=\"display:none;border-color:#1d5bd8;color:#1d5bd8\"></span>"));
-mainEl.before(H("<div id=\"edbar\">\n<span class=\"grp\"><span id=\"edSel\">매장을 클릭해 선택하세요</span><button id=\"edClear\" title=\"선택 해제 (Esc)\">선택 해제</button></span>\n<span class=\"grp\"><button id=\"edInsert\" class=\"pri\">＋ 매장 삽입</button></span>\n<span class=\"grp\"><button id=\"edMerge\" class=\"pri\" disabled>합치기</button></span>\n<span class=\"grp\">분할선 <label><input type=\"radio\" name=\"edDir\" value=\"h\" checked> 가로선(위/아래)</label><label><input type=\"radio\" name=\"edDir\" value=\"v\"> 세로선(좌/우)</label>\n 면적 비율 <input type=\"range\" id=\"edRatio\" min=\"10\" max=\"90\" step=\"5\" value=\"50\" style=\"width:110px\"><span id=\"edRatioT\">50 : 50</span><button id=\"edSplit\" class=\"pri\" disabled>분할</button></span>\n<span class=\"grp\"><button id=\"edShape\" class=\"pri\" disabled>모양 편집</button><button id=\"edRename\" disabled>이름 변경</button></span>\n<span class=\"grp\"><button id=\"edUndo\" disabled title=\"Ctrl+Z\">↶ 되돌리기</button><button id=\"edRedo\" disabled title=\"Ctrl+Y\">↷ 다시 실행</button><button id=\"edReset\">원본으로 초기화</button></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"edOrig\"> 원본 윤곽 겹쳐 보기</label><label title=\"신규 매장을 옮길 때 주변 벽에 맞춤\"><input type=\"checkbox\" id=\"edSnap\" checked> 맞춤 안내선</label></span>\n<span class=\"grp\">편집안 이름 <input id=\"edPlanName\" placeholder=\"예: A안\" style=\"width:110px;height:26px\"><button id=\"edSave\" class=\"pri\" title=\"지금 편집 상태를 새 HTML 파일로 저장\">편집 도면 저장</button><button id=\"edLoad\" title=\"JSON 저장 파일을 불러와 그 배치안으로 바꾸기\">불러오기</button><input type=\"file\" id=\"edLoadFile\" accept=\".json,application/json\" hidden><button id=\"edPPT\" class=\"pri\" title=\"도면을 PowerPoint 도형으로 넣은 .pptx 저장\">PowerPoint 저장</button><button id=\"edCSV\">CSV 저장</button><button id=\"edJSON\">JSON 저장</button></span>\n<span class=\"note\">시뮬레이션 전용 · 공간관리시스템 원본에는 반영되지 않습니다</span>\n</div>\n<div id=\"shapebar\">\n<span class=\"grp\"><b style=\"color:var(--accent)\">모양 편집</b>&nbsp;<b id=\"shName\"></b>&nbsp;<span id=\"shArea\"></span></span>\n<span class=\"grp c\">● 꼭짓점 끌기(Shift: 수평·수직) · ■ 변 끌어 벽 밀기 · ■ 더블클릭: 꼭짓점 추가 · ● 우클릭: 꼭짓점 삭제</span>\n<span class=\"grp\" id=\"shEdge\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"shSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"shUndo\" disabled title=\"Ctrl+Z\">↶ 한 단계 취소</button><button id=\"shOk\" class=\"pri\" title=\"Enter\">확정</button><button id=\"shCancel\" title=\"Esc\">취소</button></span>\n<span id=\"shWarn\"></span>\n</div>\n<div id=\"insbar\">\n<span class=\"grp\"><b style=\"color:#1a7f37\">매장 삽입</b>&nbsp;<label><input type=\"radio\" name=\"insMode\" value=\"rect\" checked> 사각형</label><label><input type=\"radio\" name=\"insMode\" value=\"poly\"> 다각형</label></span>\n<span class=\"grp\">매장명 <input id=\"insName\" value=\"신규 매장\" style=\"width:120px;height:26px\"> 분류 <select id=\"insGroup\" style=\"height:26px\"><option value=\"rtw\">패션(RTW)</option><option value=\"lux\">명품</option><option value=\"jw\">주얼리·시계</option><option value=\"acc\">잡화</option><option value=\"etc\" selected>기타</option><option value=\"vacant\">공실</option></select> <span class=\"c\">매장코드: 미배정</span></span>\n<span class=\"grp\" id=\"insArea\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"insSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"insBack\" disabled title=\"Backspace\">↶ 점 취소</button><button id=\"insOk\" class=\"pri\" disabled title=\"Enter\">삽입</button><button id=\"insCancel\" title=\"Esc\">취소</button></span>\n<span id=\"insWarn\"></span>\n</div>"));
+mainEl.before(H("<div id=\"edbar\">\n<span class=\"grp\"><span id=\"edSel\">매장을 클릭해 선택하세요</span><button id=\"edClear\" title=\"선택 해제 (Esc)\">선택 해제</button></span>\n<span class=\"grp\"><button id=\"edInsert\" class=\"pri\">＋ 매장 삽입</button></span>\n<span class=\"grp\"><button id=\"edMerge\" class=\"pri\" disabled>합치기</button></span>\n<span class=\"grp\">분할선 <label><input type=\"radio\" name=\"edDir\" value=\"h\" checked> 가로선(위/아래)</label><label><input type=\"radio\" name=\"edDir\" value=\"v\"> 세로선(좌/우)</label>\n 면적 비율 <input type=\"range\" id=\"edRatio\" min=\"10\" max=\"90\" step=\"5\" value=\"50\" style=\"width:110px\"><span id=\"edRatioT\">50 : 50</span><button id=\"edSplit\" class=\"pri\" disabled>분할</button></span>\n<span class=\"grp\"><button id=\"edShape\" class=\"pri\" disabled>모양 편집</button><button id=\"edRename\" disabled>매장명·코드 변경</button></span>\n<span class=\"grp\"><button id=\"edUndo\" disabled title=\"Ctrl+Z\">↶ 되돌리기</button><button id=\"edRedo\" disabled title=\"Ctrl+Y\">↷ 다시 실행</button><button id=\"edReset\">원본으로 초기화</button></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"edOrig\"> 원본 윤곽 겹쳐 보기</label><label title=\"신규 매장을 옮길 때 주변 벽에 맞춤\"><input type=\"checkbox\" id=\"edSnap\" checked> 맞춤 안내선</label></span>\n<span class=\"grp\">편집안 이름 <input id=\"edPlanName\" placeholder=\"예: A안\" style=\"width:110px;height:26px\"><button id=\"edSave\" class=\"pri\" title=\"지금 편집 상태를 새 HTML 파일로 저장\">편집 도면 저장</button><button id=\"edLoad\" title=\"JSON 저장 파일을 불러와 그 배치안으로 바꾸기\">불러오기</button><input type=\"file\" id=\"edLoadFile\" accept=\".json,application/json\" hidden><button id=\"edPPT\" class=\"pri\" title=\"도면을 PowerPoint 도형으로 넣은 .pptx 저장\">PowerPoint 저장</button><button id=\"edCSV\">CSV 저장</button><button id=\"edJSON\">JSON 저장</button></span>\n<span class=\"note\">시뮬레이션 전용 · 공간관리시스템 원본에는 반영되지 않습니다</span>\n</div>\n<div id=\"shapebar\">\n<span class=\"grp\"><b style=\"color:var(--accent)\">모양 편집</b>&nbsp;<b id=\"shName\"></b>&nbsp;<span id=\"shArea\"></span></span>\n<span class=\"grp c\">● 꼭짓점 끌기(Shift: 수평·수직) · ■ 변 끌어 벽 밀기 · ■ 더블클릭: 꼭짓점 추가 · ● 우클릭: 꼭짓점 삭제</span>\n<span class=\"grp\" id=\"shEdge\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"shSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"shUndo\" disabled title=\"Ctrl+Z\">↶ 한 단계 취소</button><button id=\"shOk\" class=\"pri\" title=\"Enter\">확정</button><button id=\"shCancel\" title=\"Esc\">취소</button></span>\n<span id=\"shWarn\"></span>\n</div>\n<div id=\"insbar\">\n<span class=\"grp\"><b style=\"color:#1a7f37\">매장 삽입</b>&nbsp;<label><input type=\"radio\" name=\"insMode\" value=\"rect\" checked> 사각형</label><label><input type=\"radio\" name=\"insMode\" value=\"poly\"> 다각형</label></span>\n<span class=\"grp\">매장명 <input id=\"insName\" value=\"신규 매장\" style=\"width:120px;height:26px\"> 분류 <select id=\"insGroup\" style=\"height:26px\"><option value=\"rtw\">패션(RTW)</option><option value=\"lux\">명품</option><option value=\"jw\">주얼리·시계</option><option value=\"acc\">잡화</option><option value=\"etc\" selected>기타</option><option value=\"vacant\">공실</option></select> <span class=\"c\">매장코드: 미배정</span></span>\n<span class=\"grp\" id=\"insArea\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"insSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"insBack\" disabled title=\"Backspace\">↶ 점 취소</button><button id=\"insOk\" class=\"pri\" disabled title=\"Enter\">삽입</button><button id=\"insCancel\" title=\"Esc\">취소</button></span>\n<span id=\"insWarn\"></span>\n</div>"));
 const listH2=[...document.querySelectorAll('aside h2')].find(h=>/매장 목록/.test(h.textContent));(listH2?listH2:document.querySelector('aside').lastChild).before(H("<div id=\"logbox\"><h2>변경 내역 <span id=\"edCount\" class=\"c\"></span></h2><ul id=\"edLog\"></ul></div>"));
 if(!document.getElementById('saved-state')){const s=document.createElement('script');s.id='saved-state';s.type='application/json';s.textContent='null';document.body.appendChild(s)}
 
+/* 도면 이름: 파일 이름·PPT 제목·JSON 확인에 쓴다(도면 HTML의 <title>, 예: 강남점 2층 도면) */
+const FLOOR_ID=(document.title||'도면').trim(),FLOOR_FILE=FLOOR_ID.replace(/[\\/:*?"<>|\s]+/g,'_');
+const FLOOR_FULL=((document.querySelector('header h1')||{}).textContent||FLOOR_ID).trim();
 /* ----- 2) 도면 본문 확장: 편집된 매장(여러 조각·라벨·선택) 지원 ----- */
 Store.prototype.render=function(layer,labels){
     this.node=el('path',{d:this.rings?ringsPath(this.rings):pathOf(this.v),class:'store','data-id':this.id},layer);this.node.style.fill=COLORS[this.group];
@@ -160,14 +172,32 @@ function refreshPick(){
   preview()}
 
 /* ----- 합치기 ----- */
-function merge(){const P=ED.picked.map(id=>state.stores.find(d=>d.space_id===id));if(P.length<2)return;
+/* ----- 매장명·매장코드 입력 창(합치기·분할·이름 변경) -----
+   items: [{label, name, code, hint, area}] → 확인: [{name, code}] / 취소: null */
+const escH=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function askStores(title,items,note){return new Promise(res=>{let d=document.getElementById('fpDlg');
+  if(!d){d=document.createElement('dialog');d.id='fpDlg';document.body.appendChild(d)}
+  d.innerHTML=`<form><h3>${escH(title)}</h3>${note?`<p class="c">${escH(note)}</p>`:''}`+items.map((it,i)=>`<fieldset><legend>${escH(it.label)}${it.area!=null?` · ${it.area}㎡`:''}</legend>
+    <label>매장명<input name="n${i}" value="${escH(it.name)}" autocomplete="off"></label>
+    <label>매장코드<input name="c${i}" value="${escH(it.code||'')}" placeholder="${escH(it.hint||'비우면 미배정')}" autocomplete="off"></label></fieldset>`).join('')+
+    `<div class="btns"><button type="button" id="fpCancel">취소</button><button type="submit" class="pri">확인</button></div></form>`;
+  const f=d.querySelector('form');let done=false;const fin=v=>{if(done)return;done=true;if(d.open)d.close();res(v)};
+  d.querySelector('#fpCancel').onclick=()=>fin(null);d.oncancel=e=>{e.preventDefault();fin(null)};
+  f.onsubmit=e=>{e.preventDefault();fin(items.map((it,i)=>({name:f['n'+i].value.trim()||it.name,code:f['c'+i].value.trim().toUpperCase()||null})))};
+  d.showModal();const n0=f['n0'];n0.focus();n0.select()})}
+const cdTxt=c=>c?`(${c})`:'(미배정)';
+
+async function merge(){const P=ED.picked.map(id=>state.stores.find(d=>d.space_id===id));if(P.length<2)return;
   let u;try{u=PC.union(...P.map(geomOf))}catch(e){alert('합치기 계산에 실패했습니다: '+e.message);return}
   if(u.length!==1){alert('서로 붙어 있는 매장만 합칠 수 있습니다.\n(선택한 매장들이 한 덩어리로 이어지지 않습니다)');return}
   const groups=[...new Set(P.map(d=>d.group))];
   const ns=mkStore(u,{name:P.map(d=>d.name).join('+'),group:groups.length===1?groups[0]:'etc',from:P.map(d=>d.name+(d.shop_cd?`(${d.shop_cd})`:'')).join(' + ')});
   ns.area_m2=r2(P.reduce((a,d)=>a+areaNow(d),0));ns.area_py=py(ns.area_m2);  /* 합친 면적 = 원래 면적의 합 */
+  const codes=[...new Set(P.map(d=>d.shop_cd).filter(Boolean))];
+  const ans=await askStores('합친 매장의 매장명·매장코드',[{label:'합친 매장',name:ns.name,code:codes.length===1?codes[0]:'',hint:codes.length?'원래: '+codes.join(', '):'비우면 미배정',area:ns.area_m2}],'취소하면 합치지 않습니다.');
+  if(!ans)return;ns.name=ans[0].name;ns.shop_cd=ans[0].code;
   const next=clone(state);next.stores=next.stores.filter(d=>!ED.picked.includes(d.space_id)).concat([ns]);
-  const msg=`합치기: ${P.map(d=>`${d.name} ${areaNow(d)}㎡`).join(' + ')} → ${ns.name} ${ns.area_m2}㎡`;ED.picked=[ns.space_id];commit(next,msg)}
+  const msg=`합치기: ${P.map(d=>`${d.name} ${areaNow(d)}㎡`).join(' + ')} → ${ns.name}${cdTxt(ns.shop_cd)} ${ns.area_m2}㎡`;ED.picked=[ns.space_id];commit(next,msg)}
 
 /* ----- 분할: 면적 비율이 맞는 분할선 위치를 찾는다 ----- */
 function cutAt(G,dir,c){const[x0,y0,x1,y1]=bboxOf(G),m=1000,R=(a,b,c2,d)=>[[[[a,b],[c2,b],[c2,d],[a,d]]]];
@@ -178,14 +208,17 @@ function findCut(G,dir,ratio){const[x0,y0,x1,y1]=bboxOf(G),tot=areaOf(G);let lo=
   for(let k=0;k<40;k++){const mid=(lo+hi)/2,a=areaOf(cutAt(G,dir,mid)[0])/tot;
     if(dir==='h'){a>ratio?lo=mid:hi=mid}else{a<ratio?lo=mid:hi=mid}}
   return Math.round((lo+hi)/2)}  /* cm 단위로 반올림 */
-function split(){if(ED.picked.length!==1)return;const d=state.stores.find(x=>x.space_id===ED.picked[0]),G=geomOf(d),r=ED.ratio/100;
+async function split(){if(ED.picked.length!==1)return;const d=state.stores.find(x=>x.space_id===ED.picked[0]),G=geomOf(d),r=ED.ratio/100;
   const c=findCut(G,ED.dir,r),[A,B]=cutAt(G,ED.dir,c);if(!A.length||!B.length){alert('분할할 수 없는 위치입니다. 비율을 바꿔 보세요.');return}
   const nm=ED.dir==='h'?['위','아래']:['왼쪽','오른쪽'],src=d.from||(d.name+(d.shop_cd?`(${d.shop_cd})`:''));
   const a=mkStore(A,{name:`${d.name} (${nm[0]})`,group:d.group,from:src}),b=mkStore(B,{name:`${d.name} (${nm[1]})`,group:d.group,from:src});
   /* 나눈 면적은 원래 면적을 도형 비율대로 나눠 합계가 맞도록 한다 */
   {const tot=areaNow(d),ga=areaOf(A),gb=areaOf(B);a.area_m2=r2(tot*ga/(ga+gb));b.area_m2=r2(tot-a.area_m2);a.area_py=py(a.area_m2);b.area_py=py(b.area_m2)}
+  const hint=d.shop_cd?'원래: '+d.shop_cd:'비우면 미배정';
+  const ans=await askStores('나눈 매장의 매장명·매장코드',[{label:nm[0],name:a.name,code:'',hint,area:a.area_m2},{label:nm[1],name:b.name,code:'',hint,area:b.area_m2}],'취소하면 나누지 않습니다.');
+  if(!ans)return;a.name=ans[0].name;a.shop_cd=ans[0].code;b.name=ans[1].name;b.shop_cd=ans[1].code;
   const next=clone(state);next.stores=next.stores.filter(x=>x.space_id!==d.space_id).concat([a,b]);
-  const msg=`${ED.dir==='h'?'가로선':'세로선'} 분할(${ED.ratio}:${100-ED.ratio}): ${d.name} ${areaNow(d)}㎡ → ${nm[0]} ${a.area_m2}㎡ / ${nm[1]} ${b.area_m2}㎡`;
+  const msg=`${ED.dir==='h'?'가로선':'세로선'} 분할(${ED.ratio}:${100-ED.ratio}): ${d.name} ${areaNow(d)}㎡ → ${a.name}${cdTxt(a.shop_cd)} ${a.area_m2}㎡ / ${b.name}${cdTxt(b.shop_cd)} ${b.area_m2}㎡`;
   ED.picked=[];commit(next,msg)}
 
 /* 분할 미리보기: 분할선과 양쪽 면적 */
@@ -201,9 +234,11 @@ function preview(){EDL.innerHTML='';if(window.SHAPE||!ED.mode||ED.picked.length!
   const nm=ED.dir==='h'?['위','아래']:['왼쪽','오른쪽'];lbl(A,nm[0]);lbl(B,nm[1])}
 
 /* ----- 이름 변경 ----- */
-function rename(){if(ED.picked.length!==1)return;const d=state.stores.find(x=>x.space_id===ED.picked[0]);const n=prompt('새 매장명(브랜드)을 입력하세요',d.name);if(!n||n.trim()===d.name)return;
-  const next=clone(state),t=next.stores.find(x=>x.space_id===d.space_id);t.name=n.trim();if(!t.edited){t.edited=true;t.from=d.name+(d.shop_cd?`(${d.shop_cd})`:'')}
-  commit(next,`이름 변경: ${d.name} → ${n.trim()}`)}
+async function rename(){if(ED.picked.length!==1)return;const d=state.stores.find(x=>x.space_id===ED.picked[0]);
+  const ans=await askStores('매장명·매장코드 변경',[{label:d.name,name:d.name,code:d.shop_cd||'',area:areaNow(d)}]);if(!ans)return;
+  const n=ans[0].name,c=ans[0].code;if(n===d.name&&c===(d.shop_cd||null))return;
+  const next=clone(state),t=next.stores.find(x=>x.space_id===d.space_id);if(!t.edited){t.edited=true;t.from=d.name+(d.shop_cd?`(${d.shop_cd})`:'')}t.name=n;t.shop_cd=c;
+  commit(next,`매장명·코드 변경: ${d.name}${cdTxt(d.shop_cd)} → ${n}${cdTxt(c)}`)}
 
 /* ----- 변경 내역·내보내기 ----- */
 function renderLog(){const L=document.getElementById('edLog');L.innerHTML=state.log.length?state.log.map((g,i)=>`<li><span class="c">${i+1}. ${g.t}</span><br>${g.msg}</li>`).join(''):'<li class="c">아직 변경 사항이 없습니다.</li>';
@@ -219,12 +254,12 @@ function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return`${d.ge
 function exportCSV(){const rows=[['공간ID','매장명','매장코드','면적(㎡)','면적(평)','편집여부','원본 매장']];
   state.stores.slice().sort((a,b)=>a.space_nm.localeCompare(b.space_nm)).forEach(d=>rows.push([d.space_id,d.name,d.shop_cd||'',areaNow(d),d.area_py??py(areaNow(d)),d.edited?'Y':'',d.from||'']));
   rows.push([]);rows.push(['변경 내역']);state.log.forEach((g,i)=>rows.push([i+1,g.t,g.msg]));
-  download(`강남점_2F_편집시뮬레이션_${stamp()}.csv`,'﻿'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
+  download(`${FLOOR_FILE}_편집시뮬레이션_${stamp()}.csv`,'﻿'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
 function exportJSON(){const ids=new Set(state.stores.map(d=>d.space_id));
-  const out={floor:'강남점 2F',name:ED.planName||'',exported_at:new Date().toISOString(),seq:ED.seq,state,note:'화면 시뮬레이션 결과(공간관리시스템 미반영). 좌표 단위 cm, Y축 위쪽',
+  const out={floor:FLOOR_ID,name:ED.planName||'',exported_at:new Date().toISOString(),seq:ED.seq,state,note:'화면 시뮬레이션 결과(공간관리시스템 미반영). 좌표 단위 cm, Y축 위쪽',
     log:state.log,removed:BASE.filter(d=>!ids.has(d.space_id)).map(d=>({space_id:d.space_id,name:d.name,shop_cd:d.shop_cd})),
     added:state.stores.filter(d=>d.edited).map(d=>({space_id:d.space_id,name:d.name,area_m2:areaNow(d),from:d.from,polygons:d.rings}))};
-  download(`강남점_2F_편집시뮬레이션_${stamp()}.json`,JSON.stringify(out,null,1),'application/json')}
+  download(`${FLOOR_FILE}_편집시뮬레이션_${stamp()}.json`,JSON.stringify(out,null,1),'application/json')}
 
 /* ----- 화면 연결 ----- */
 const $=id=>document.getElementById(id);
@@ -414,7 +449,7 @@ function saveHTML(){
   const name=document.getElementById('edPlanName').value||'편집안';
   ED.planName=name.trim();
   const now=new Date(),p=n=>String(n).padStart(2,'0'),at=`${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
-  const data=JSON.stringify({floor:'강남점 2F',name:ED.planName,saved_at:at,seq:ED.seq,state}).replace(/<\//g,'<\\/');
+  const data=JSON.stringify({floor:FLOOR_ID,name:ED.planName,saved_at:at,seq:ED.seq,state}).replace(/<\//g,'<\\/');
   const src=window.__SRC||'',k=src.indexOf('<script id="snap">');
   if(k<0){alert('저장용 원본 정보를 찾지 못했습니다.');return}
   let out='<!doctype html>\n'+src.slice(0,k);
@@ -424,13 +459,13 @@ function saveHTML(){
     out+=`<script${attrs}>`+(s.id==='saved-state'?data:s.textContent)+'<\/script>\n'});
   out+='</body></html>';
   const safe=ED.planName.replace(/[\\/:*?"<>|\s]+/g,'_')||'편집';
-  download(`강남점_2F_도면_${safe}_${stamp()}.html`,out,'text/html;charset=utf-8');
+  download(`${FLOOR_FILE}_${safe}_${stamp()}.html`,out,'text/html;charset=utf-8');
   showPlanTag()}
 
 /* 2) 불러오기: [JSON 저장]으로 만든 파일을 읽어 그 배치안으로 바꾼다(되돌리기 가능) */
 function loadJSON(file){const rd=new FileReader();rd.onload=()=>{let j;
   try{j=JSON.parse(rd.result)}catch(e){alert('JSON 파일을 읽지 못했습니다.');return}
-  if(j.floor&&j.floor!=='강남점 2F'&&!confirm(`이 파일은 '${j.floor}' 도면입니다. 그래도 불러올까요?`))return;
+  if(j.floor&&j.floor!==FLOOR_ID&&!confirm(`이 파일은 '${j.floor}' 도면입니다. 그래도 불러올까요?`))return;
   let st;
   if(j.state&&Array.isArray(j.state.stores))st=clone(j.state);
   else if(Array.isArray(j.added)){  /* 이전 버전 JSON: 원본에서 지운 매장·새 매장으로 다시 만든다 */
@@ -640,23 +675,26 @@ function titleOf(pptx,slide,t){slide.addText(t,{x:0.6,y:0.35,w:12.13,h:0.9,fontF
 
 async function savePPT(){
   if(window.SHAPE||window.INS){alert('모양 편집이나 매장 삽입을 먼저 마쳐 주세요.');return}
-  const btn=document.getElementById('edPPT');btn.disabled=true;btn.textContent='만드는 중…';
+  const btns=['edPPT','hdPPT'].map(id=>document.getElementById(id)).filter(Boolean),lbl=btns.map(b=>b.textContent);btns.forEach(b=>{b.disabled=true;b.textContent='만드는 중…'});
+  const hasChg=state.log.length>0;  /* 변경이 없으면 표지·도면·매장 목록만 */
   try{
     const pptx=new PptxGenJS();pptx.layout='LAYOUT_WIDE';pptx.theme={headFontFace:PFONT,bodyFontFace:PFONT};
     const name=(document.getElementById('edPlanName').value||ED.planName||'').trim(),now=new Date(),p2=n=>String(n).padStart(2,'0');
     const today=`${now.getFullYear()}.${p2(now.getMonth()+1)}.${p2(now.getDate())}`;
-    pptx.title=`강남점 2F 도면 아이디어${name?' - '+name:''}`;
+    pptx.title=`${FLOOR_ID}${hasChg?' 아이디어':''}${name?' - '+name:''}`;
     const ids=new Set(state.stores.map(d=>d.space_id)),changed=new Set(state.stores.filter(d=>d.edited).map(d=>d.space_id));
     const goneOrChanged=BASE.filter(d=>!ids.has(d.space_id)||changed.has(d.space_id));
     /* 1. 표지 */
     let s=pptx.addSlide();
-    s.addText('강남점 2층 도면 아이디어',{x:1.67,y:1.23,w:10,h:2.61,fontFace:PFONT,fontSize:54,align:'center',valign:'bottom',color:'000000',margin:0});
-    s.addText([name?`${name}  ·  `:'',`${today}`].join(''),{x:1.67,y:3.94,w:10,h:1.81,fontFace:PFONT,fontSize:24,align:'center',valign:'top',color:'595959',margin:0});
+    s.addText(FLOOR_ID+(hasChg?' 아이디어':''),{x:1.17,y:1.23,w:11,h:2.61,fontFace:PFONT,fontSize:48,align:'center',valign:'bottom',color:'000000',margin:0});
+    s.addText([FLOOR_FULL!==FLOOR_ID?FLOOR_FULL+'\n':'',name?`${name}  ·  `:'',`${today}`].join(''),{x:1.17,y:3.94,w:11,h:1.81,fontFace:PFONT,fontSize:24,align:'center',valign:'top',color:'595959',margin:0});
     /* 2. 아이디어 도면(크게) */
-    s=pptx.addSlide();titleOf(pptx,s,`아이디어 도면${name?' – '+name:''}`);
+    s=pptx.addSlide();titleOf(pptx,s,`${hasChg?'아이디어 도면':'도면'}${name?' – '+name:''}`);
     drawPlan(pptx,s,state.stores,{x:0.4,y:1.45,w:12.53,h:5.3},{changed,maxFont:12,facLabel:true});
-    s.addText([{text:'━ ━ ',options:{color:'B4005A',bold:true}},{text:'아이디어 모드에서 바뀐 매장  ·  도면 단위 cm(공간관리시스템 좌표)  ·  시뮬레이션이며 원본 도면에는 반영되지 않음',options:{color:'595959'}}],
+    s.addText(hasChg?[{text:'━ ━ ',options:{color:'B4005A',bold:true}},{text:'아이디어 모드에서 바뀐 매장  ·  도면 단위 cm(공간관리시스템 좌표)  ·  시뮬레이션이며 원본 도면에는 반영되지 않음',options:{color:'595959'}}]:[{text:'도면 단위 cm(공간관리시스템 좌표)',options:{color:'595959'}}],
       {x:0.6,y:6.85,w:12.13,h:0.35,fontFace:PFONT,fontSize:10,margin:0});
+    const A=d=>r2(areaNow(d));
+    if(hasChg){
     /* 3. 변경 전/후 비교 */
     s=pptx.addSlide();titleOf(pptx,s,'변경 전 / 후 비교');
     s.addText('변경 전',{x:0.6,y:1.35,w:3,h:0.3,fontFace:PFONT,fontSize:14,bold:true,margin:0});
@@ -664,7 +702,7 @@ async function savePPT(){
     s.addText('변경 후',{x:0.6,y:4.3,w:3,h:0.3,fontFace:PFONT,fontSize:14,bold:true,margin:0});
     drawPlan(pptx,s,state.stores,{x:0.6,y:4.65,w:12.13,h:2.45},{changed,maxFont:9});
     /* 4. 면적 변화 요약 */
-    const A=d=>r2(areaNow(d)),sum=a=>r2(a.reduce((x,d)=>x+A(d),0));
+    const sum=a=>r2(a.reduce((x,d)=>x+A(d),0));
     const before=sum(goneOrChanged),after=sum(state.stores.filter(d=>d.edited)),totB=sum(BASE),totA=sum(state.stores),dd=r2(after-before);
     const rows=goneOrChanged.map(d=>['변경 전',d.name,d.shop_cd||'(미배정)',A(d),py(A(d)),'']).concat(state.stores.filter(d=>d.edited).map(d=>['변경 후',d.name,d.shop_cd||'(미배정)',A(d),py(A(d)),d.from||'']));
     const pages=Math.max(1,Math.ceil(rows.length/13));
@@ -678,19 +716,20 @@ async function savePPT(){
     for(let pg=0;pg<lp;pg++){s=pptx.addSlide();titleOf(pptx,s,'변경 내역'+(lp>1?` (${pg+1}/${lp})`:''));
       if(!logs.length){s.addText('변경 내역이 없습니다.',{x:0.6,y:1.6,w:12,h:0.5,fontFace:PFONT,fontSize:16});break}
       addTbl(pptx,s,['No','시각','내용'],logs.slice(pg*12,pg*12+12),{colW:[0.6,1.2,10.33],align:['center','center','left'],fontSize:10.5})}
+    }
     /* 6. 매장 목록(변경 후) */
     const all=state.stores.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(d=>[d.name,d.shop_cd||'(미배정)',A(d),py(A(d)),d.edited?'변경':'']);
     const sp=Math.ceil(all.length/15);
-    for(let pg=0;pg<sp;pg++){s=pptx.addSlide();titleOf(pptx,s,'매장 목록(변경 후)'+(sp>1?` (${pg+1}/${sp})`:''));
+    for(let pg=0;pg<sp;pg++){s=pptx.addSlide();titleOf(pptx,s,(hasChg?'매장 목록(변경 후)':'매장 목록')+(sp>1?` (${pg+1}/${sp})`:''));
       addTbl(pptx,s,['매장명','매장코드','면적(㎡)','면적(평)','변경'],all.slice(pg*15,pg*15+15),{colW:[4.2,2.4,2,2,1.53],align:['left','center','right','right','center'],fontSize:10.5,rowH:0.28})}
     const blob=await pptx.write({outputType:'blob'});
-    const safe=(name||'아이디어').replace(/[\\/:*?"<>|\s]+/g,'_');
-    await download(`강남점_2F_도면_${safe}_${stamp()}.pptx`,blob,'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    const safe=(name||(hasChg?'아이디어':'현재')).replace(/[\\/:*?"<>|\s]+/g,'_');
+    await download(`${FLOOR_FILE}_${safe}_${stamp()}.pptx`,blob,'application/vnd.openxmlformats-officedocument.presentationml.presentation');
   }catch(e){console.error(e);alert('PowerPoint 파일을 만들지 못했습니다: '+e.message)}
-  finally{btn.disabled=false;btn.textContent='PowerPoint 저장'}}
-document.getElementById('edPPT').onclick=savePPT;
+  finally{btns.forEach((b,i)=>{b.disabled=false;b.textContent=lbl[i]})}}
+document.getElementById('edPPT').onclick=savePPT;document.getElementById('hdPPT').onclick=savePPT;
 
 /* ----- 4) 외부 연동용 API ----- */
-window.FloorplanEditor={version:'20261105',ED,get state(){return state},geomOf,bboxOf,areaOf,rebuild,
+window.FloorplanEditor={version:'20261105b',ED,get state(){return state},geomOf,bboxOf,areaOf,rebuild,
   saveHTML,savePPT,exportCSV,exportJSON,loadJSON,undo,redo};
 })();
