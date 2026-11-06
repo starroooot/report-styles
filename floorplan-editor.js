@@ -169,9 +169,17 @@ const FLOOR_FULL=((document.querySelector('header h1')||{}).textContent||FLOOR_I
 /* ----- 2) 도면 본문 확장: 편집된 매장(여러 조각·라벨·선택) 지원 ----- */
 /* 속도: 라벨 위치(labelPoint) 계산 결과를 도형·글자 폭별로 기억해 다시 쓴다(같은 모양이면 결과도 같다) */
 const LPC=new Map();
+/* 좁고 긴 매장은 가로 폭이 글자 크기를 정하므로 후보 점수가 위아래로 같아 라벨이 맨 위에 붙는다 → 가로 폭이 줄지 않는 범위에서 세로 가운데로 옮긴다 */
+function centerY(v,r){const P=v.map(T),[x,y]=r.pt;
+  const span=(x,y,horiz)=>{const xs=[];for(let i=0,j=P.length-1;i<P.length;j=i++){const[ax,ay]=P[j],[bx,by]=P[i];
+      if(horiz){if((ay>y)!==(by>y))xs.push(ax+(y-ay)*(bx-ax)/(by-ay))}else{if((ax>x)!==(bx>x))xs.push(ay+(x-ax)*(by-ay)/(bx-ax))}}
+    xs.sort((m,n)=>m-n);const c=horiz?x:y;for(let k=0;k+1<xs.length;k+=2)if(xs[k]<=c&&c<=xs[k+1])return [xs[k],xs[k+1]];return null};
+  const vsp=span(x,y,false);if(!vsp)return r;const cy=(vsp[0]+vsp[1])/2,h0=span(x,y,true),h1=span(x,cy,true);if(!h0||!h1)return r;
+  const w=s=>2*Math.min(x-s[0],s[1]-x);if(w(h1)<w(h0)*0.99)return r;
+  return Object.assign({},r,{pt:[x,cy],hs:w(h1),vs:vsp[1]-vsp[0]})}
 if(typeof labelPoint==='function'){const LP0=labelPoint;labelPoint=function(node,v,e1,e2){
   const k=(node.getAttribute('d')||'')+'|'+(e1||0)+'|'+(e2||0);let r=LPC.get(k);
-  if(!r){r=LP0(node,v,e1,e2);if(LPC.size>3000)LPC.clear();LPC.set(k,r)}
+  if(!r){r=LP0(node,v,e1,e2);if(!v.some(p=>p[2]))r=centerY(v,r);if(LPC.size>3000)LPC.clear();LPC.set(k,r)}
   return {pt:[r.pt[0],r.pt[1]],w:r.w,h:r.h,r:r.r,hs:r.hs,vs:r.vs}}}
 /* 글자 맞춤 결과(한 줄/두 줄·글자 크기)도 도형·라벨 글자별로 기억한다 */
 const LFC=new Map();
@@ -185,11 +193,28 @@ Store.prototype.bind=function(){
     this.node.addEventListener('mousemove',e=>Plan.tip(e,this.name+(this.shop_cd?` (${this.shop_cd})`:'')+(this.edited?` · ${this.area_note==='비공개'?'면적 비공개':this.area_m2+'㎡'} · 편집`:'')));
     this.node.addEventListener('mouseleave',()=>Plan.tip(null));
   }
+/* 라벨 줄바꿈: 이름을 n줄로 나눈다. 띄어쓰기가 있으면 단어 단위로, 없으면 글자 단위로 줄 폭이 비슷하게 나눈다 */
+const splitLines=(s,n)=>{if(n<=1)return [s];const w=s.split(/\s+/).filter(Boolean),sl=s.split(/(?<=\/)/).filter(Boolean);
+  let unit,sep;if(w.length>=n){unit=w;sep=' '}else if(sl.length>=n&&w.length===1){unit=sl;sep=''}
+  else if(n===2&&w.length===1&&[...s].length>=4){unit=[...s];sep=''}  /* 글자 단위로 끊는 것은 두 줄까지만 */else return null;  /* 띄어쓰기가 있는데 단어 수가 줄 수보다 적으면 단어 중간을 끊지 않는다 */
+  const tot=unit.reduce((a,u)=>a+emw(u),0),out=[];let cur=[],acc=0;
+  unit.forEach((u,i)=>{const uw=emw(u),left=unit.length-i;
+    if(cur.length&&out.length<n-1&&(acc+uw/2>tot*(out.length+1)/n||left<=n-1-out.length)){out.push(cur.join(sep).trim());cur=[]}
+    cur.push(u);acc+=uw});
+  if(cur.length)out.push(cur.join(sep).trim());return out.length===n&&out.every(Boolean)?out:null};
+/* tspan 줄 간격: 가운데 정렬(n줄) */
+const lineDy=(fs,i,n)=>i?fs*1.1:-fs*0.55*(n-1);
+const WRAP_MIN_AREA=100000;
+const bbArea=d=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;(d.rings?d.rings.flat(2):d.v).forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});return (x1-x0)*(y1-y0)};  /* 화면 재계산 없이 경계 상자 넓이(cm²) */
+/* 캔버스로 글자 폭 재기(글자 크기 1 기준). 라벨과 같은 글꼴·굵기 */
+const TCX=document.createElement('canvas').getContext('2d'),TWC=new Map();let TFAM=null;
+const textW=(s,t)=>{if(!TFAM)TFAM=getComputedStyle(t).fontFamily||'sans-serif';let w=TWC.get(s);if(w==null){TCX.font=`700 100px ${TFAM}`;w=TCX.measureText(s).width/100;if(TWC.size>5000)TWC.clear();TWC.set(s,w)}return w};  /* 줄바꿈 적용 최소 매장 크기(경계 상자 10㎡). 이보다 작은 매장은 기존 방식(작은 글자 → 화면 최소 크기 확대) */
 Store.prototype.layoutLabel=function(){
     const labels=this.labels;if(this.labelEl){this.labelEl.remove();this.labelEl=null;this.fitSize=0}
     const code=Plan.showCode?this.shop_cd:null,nm=this.label||this.name;  /* label: 도면 표시명(비우면 매장명) */
     this.labelText=code?`${nm}(${code})`:nm;
-    const L=labelPoint(this.node,this.v,emw(this.labelText),code?Math.max(emw(nm),emw(`(${code})`)):0),[x,y]=L.pt;this.lpt=L.pt;
+    const s2=splitLines(nm,2),ems2=code?Math.max(emw(nm),emw(`(${code})`)):s2?Math.max(...s2.map(emw)):0;
+    const L=labelPoint(this.node,this.v,emw(this.labelText),ems2),[x,y]=L.pt;this.lpt=L.pt;
     /* 글자 맞추기: 라벨 지점의 실제 가로·세로 폭 안에 들어가도록 */
     const W=L.hs*0.88,H=L.vs*0.8,base=Math.min(150,H*0.45);
     const t=txt(labels,x,y,this.labelText,base,700);this.labelEl=t;t.dataset.lid=this.id;
@@ -197,24 +222,25 @@ Store.prototype.layoutLabel=function(){
     const finish=()=>{this.fitSize=+t.getAttribute('font-size');this.labelEl=t;
       if(this.lpos){const[px,py]=T(this.lpos);this.lpt=[px,py];t.setAttribute('x',px);t.setAttribute('y',py);t.querySelectorAll('tspan').forEach(ts=>ts.setAttribute('x',px))}  /* 아이디어 모드에서 옮긴 라벨 위치(원본 좌표) */
       Plan.minFont&&Plan.minFont()};
-    const two2=fs=>{t.textContent='';t.setAttribute('font-size',fs.toFixed(1));el('tspan',{x,dy:-fs*0.55},t).textContent=nm;el('tspan',{x,dy:fs*1.1},t).textContent=`(${code})`};
+    const multi=(lines,fs)=>{t.textContent='';t.setAttribute('font-size',fs.toFixed(1));lines.forEach((ln,i)=>{el('tspan',{x,dy:lineDy(fs,i,lines.length)},t).textContent=ln})};
     const hit=LFC.get(fk);
-    if(hit){if(hit.two)two2(hit.fs);else{t.textContent=this.labelText;t.setAttribute('font-size',hit.fs.toFixed(1))}finish();return}
-    requestAnimationFrame(()=>{
-      if(!this.node.isConnected)return;  /* 편집으로 다시 그려져 사라진 매장 */
-      const one=Math.min(base,H,base*W/t.getBBox().width);        /* 한 줄일 때 가능한 크기 */
-      let two=0;if(code){t.textContent=nm;const w1=t.getBBox().width;t.textContent=`(${code})`;const w2=t.getBBox().width;
-        two=Math.min(base,H/2.3,base*W/Math.max(w1,w2))}               /* 두 줄일 때 가능한 크기 */
-      if(two>one*1.15)two2(two);
-      else{t.textContent=this.labelText;t.setAttribute('font-size',Math.max(14,one).toFixed(1))}
-      /* 최종 점검: 글자 상자 네 모서리가 매장 안에 들어올 때까지 축소 */
-      const svgEl=this.node.ownerSVGElement,p=svgEl.createSVGPoint();
-      const fits=()=>{const b=t.getBBox();return [[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].every(([px,py])=>{p.x=px;p.y=py;return this.node.isPointInFill(p)})};
-      const resize=f=>{const s=+t.getAttribute('font-size')*f;t.setAttribute('font-size',s.toFixed(1));t.querySelectorAll('tspan').forEach((ts,i)=>ts.setAttribute('dy',i?s*1.1:-s*0.55))};
-      for(let k=0;k<30&&!fits()&&+t.getAttribute('font-size')>14;k++)resize(0.9);
-      if(LFC.size>3000)LFC.clear();LFC.set(fk,{two:t.querySelectorAll('tspan').length>0,fs:+t.getAttribute('font-size')});
-      finish();
-    });
+    if(hit){if(hit.lines)multi(hit.lines,hit.fs);else{t.textContent=this.labelText;t.setAttribute('font-size',hit.fs.toFixed(1))}finish();return}
+    /* 속도: 글자 폭은 캔버스로 재고(화면 재계산 없음), 크기·줄바꿈·매장 안 맞춤을 계산으로 정한 뒤 한 번만 적용한다 */
+    const mw=s=>textW(s,t);
+    const one=Math.min(base,H,W/mw(this.labelText));        /* 한 줄일 때 가능한 크기 */
+    /* 여러 줄 후보: 매장코드 표시 중이면 [이름…, (코드)], 아니면 이름을 2~3줄로. 작은 매장은 줄바꿈하지 않는다 */
+    const big=bbArea(this)>=WRAP_MIN_AREA;let best=null;
+    const cands=[];if(code){cands.push([nm,`(${code})`]);if(big&&s2)cands.push(s2.concat([`(${code})`]))}
+    else if(big){[s2,splitLines(nm,3)].forEach(c=>c&&cands.push(c))}
+    cands.forEach(ls=>{const n=ls.length,m=Math.max(...ls.map(mw)),fs=Math.min(base,H/(n*1.15),W/m);if(!best||fs>best.fs*(n>best.ls.length?1.15:1))best={ls,fs}});  /* 줄이 늘면 15% 이상 커질 때만 */
+    let lines=null,fs;if(best&&best.fs>one*1.15){lines=best.ls;fs=best.fs}else fs=Math.max(14,one);
+    /* 최종 점검: 글자 상자 네 모서리가 매장 안에 들어올 때까지 축소(상자는 계산) */
+    const p=svg.createSVGPoint(),ls=lines||[this.labelText],wmax=Math.max(...ls.map(mw));
+    const fits=f=>{const w=wmax*f,h=((ls.length-1)*1.1+1.2)*f,x0=x-w/2,y0=y-h/2;return [[x0,y0],[x0+w,y0],[x0,y0+h],[x0+w,y0+h]].every(([px,py])=>{p.x=px;p.y=py;return this.node.isPointInFill(p)})};
+    for(let k=0;k<30&&!fits(fs)&&fs>14;k++)fs*=0.9;
+    if(lines)multi(lines,fs);else{t.textContent=this.labelText;t.setAttribute('font-size',fs.toFixed(1))}
+    if(LFC.size>3000)LFC.clear();LFC.set(fk,{lines,fs});
+    finish();
   }
 /* 속도: 확대·축소·이동하는 동안에는 라벨 재배치(layout)를 미루고, 손을 멈춘 뒤 한 번만 한다.
    도면 이동만 하고 배율이 그대로면 글자 크기가 같으므로 다시 배치하지 않는다 */
@@ -222,17 +248,20 @@ Store.prototype.layoutLabel=function(){
   const scaleNow=()=>{const r=svg.getBoundingClientRect(),vbx=(svg.getAttribute('viewBox')||'0 0 1 1').split(' ').map(Number);return r.width?Math.min(r.width/vbx[2],r.height/vbx[3]):0};
   ['wheel','touchmove'].forEach(ev=>svg.addEventListener(ev,()=>{t0=performance.now()},{capture:true,passive:true}));
   const run=()=>{clearTimeout(tm);tm=0;lastK=scaleNow();lastVB=svg.getAttribute('viewBox');mf0()};
-  Plan.minFont=()=>{const k=scaleNow(),vbs=svg.getAttribute('viewBox'),same=lastK&&Math.abs(k-lastK)<=lastK*1e-6;
-    if(vbs!==lastVB&&same&&!tm){lastVB=vbs;return}                        /* 도면 이동만: 글자 크기 그대로 → 재배치 생략 */
-    if(vbs!==lastVB&&!same&&performance.now()-t0<300){clearTimeout(tm);tm=setTimeout(run,160);return}  /* 휠·핀치 확대 중: 멈춘 뒤 한 번 */
-    run()}}
+  /* 판단은 다음 프레임에 한 번만(여러 번 불려도 화면 크기를 한 번만 읽어 재계산을 막는다) */
+  let pend=0,force=false;const decide=()=>{pend=0;const k=scaleNow(),vbs=svg.getAttribute('viewBox'),same=lastK&&Math.abs(k-lastK)<=lastK*1e-6,f=force;force=false;
+    if(!f&&vbs!==lastVB&&same&&!tm){lastVB=vbs;return}                        /* 도면 이동만: 글자 크기 그대로 → 재배치 생략 */
+    if(!f&&vbs!==lastVB&&!same&&performance.now()-t0<300){clearTimeout(tm);tm=setTimeout(run,160);return}  /* 휠·핀치 확대 중: 멈춘 뒤 한 번 */
+    run()};
+  Plan.minFont=()=>{if(svg.getAttribute('viewBox')===lastVB)force=true;  /* 화면 이동 없이 불린 경우 = 내용 변경 → 반드시 재배치 */
+    if(!pend)pend=requestAnimationFrame(decide)}}
 /* 속도: 라벨 배치(layout) 다시 쓰기 — 배치 규칙은 도면 본문과 같고, 계산 방법만 바꿨다.
    본문은 후보 자리·크기마다 글자 속성을 바꾸고 getBBox로 다시 재서(매번 화면 재계산) 매장이 많으면 수 초가 걸린다.
    여기서는 ① 모든 글자를 한 번에 재고(글자 상자는 글자 크기에 비례) ② 후보는 계산으로만 비교한 뒤 ③ 마지막에 한 번에 적용한다 */
 if(typeof layout==='function'){
   const MINPX=typeof MIN_PX!=='undefined'?MIN_PX:12,FLOWPX=typeof FLOW_MIN_PX!=='undefined'?FLOW_MIN_PX:9,FACPX=typeof FAC_MIN_PX!=='undefined'?FAC_MIN_PX:9;
   const NUD=typeof NUDGE!=='undefined'?NUDGE:[[0,0],[0,-1.3],[0,1.3],[-1.6,0],[1.6,0]];
-  const setFs=(t,fs)=>{t.setAttribute('font-size',fs.toFixed(1));t.querySelectorAll('tspan').forEach((ts,i)=>ts.setAttribute('dy',i?fs*1.1:-fs*0.55))};
+  const setFs=(t,fs)=>{const ts=t.querySelectorAll('tspan');t.setAttribute('font-size',fs.toFixed(1));ts.forEach((e,i)=>e.setAttribute('dy',lineDy(fs,i,ts.length)))};
   const mv=(t,x,y)=>{t.setAttribute('x',x);t.setAttribute('y',y);t.querySelectorAll('tspan').forEach(ts=>ts.setAttribute('x',x))};
   /* 글자 크기 1 기준 상자(기준점 x,y에 대한 상대값) */
   const metric=t=>{const k=t.textContent+'|'+t.childElementCount;if(t._m&&t._m.k===k)return t._m;
@@ -381,7 +410,10 @@ function rebuild(){
   [...Plan.stores.entries()].forEach(([id,s])=>{const d=want.get(id);
     if(d){const k=keyOf(d);if(RK.get(id)===k&&s.node.isConnected)return;
       /* 처음 한 번: 도면 본문이 이미 그린 원본 매장은 그대로 쓰고(라벨 계산 생략) 클릭 동작만 아이디어 모드용으로 바꾼다 */
-      if(firstBuild&&!RK.has(id)){const b=BASE.find(x=>x.space_id===id);if(b&&keyOf(b)===k){const n=s.node.cloneNode(true);s.node.replaceWith(n);s.node=n;s.bind();if(s.labelEl)s.labelEl.dataset.lid=id;RK.set(id,k);return}}}
+      if(firstBuild&&!RK.has(id)){const b=BASE.find(x=>x.space_id===id);if(b&&keyOf(b)===k){const n=s.node.cloneNode(true);s.node.replaceWith(n);s.node=n;s.bind();if(s.labelEl)s.labelEl.dataset.lid=id;RK.set(id,k);
+        /* 줄바꿈으로 더 크게 쓸 수 있는 매장(충분히 크고 글자가 최대 크기보다 작은 매장)만 라벨을 다시 맞춘다 */
+        if(s.labelEl&&(s.shop_cd||s.edited)&&bbArea(s)>=WRAP_MIN_AREA&&!(s.fitSize>=149))s.layoutLabel()
+        return}}}
     s.node.remove();s.labelEl&&s.labelEl.remove();Plan.stores.delete(id);RK.delete(id);ch=true});
   want.forEach((d,id)=>{if(Plan.stores.has(id))return;const s=new Store(clone(d));s.render(SL,LL);if(d.edited)s.node.classList.add('edited');Plan.stores.set(id,s);RK.set(id,keyOf(d));ch=true});
   firstBuild=false;
