@@ -91,6 +91,7 @@ main>aside{display:flex;flex-direction:column;overflow:hidden!important;min-heig
 body.editing .efac{cursor:pointer}.efac.picked{stroke:#1d5bd8!important;stroke-width:40!important;stroke-dasharray:none}.efac.edited{stroke:#b4005a;stroke-dasharray:50 25;stroke-width:14}
 body.editing.tool-move .store,body.editing.tool-move .efac,body.editing .store.picked,body.editing .efac.picked{cursor:move}
 body.splitting #edStat{display:none}
+#cpSw{display:grid;grid-template-columns:repeat(6,26px);gap:6px}#cpSw .cpSep{grid-column:1/-1;height:1px;background:#e3e3e3;margin:1px 0}#cpSw button{width:26px;height:26px;padding:0;border:1px solid #bbb;border-radius:5px;cursor:pointer}#cpSw button:hover{outline:2px solid #1d5bd8;outline-offset:1px}
 #detail dl.dgrid{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0;align-items:baseline}#detail dl.dgrid dt{color:#888;font-size:11px;white-space:nowrap}#detail dl.dgrid dd{margin:0;word-break:break-all}
 #detail .dcode{font-size:11px;color:#555;margin-left:2px}#detail .dsub{font-size:10.5px;color:#888}
 `;document.head.appendChild(st);
@@ -125,6 +126,8 @@ const ICON={
   snap:'<path d="M6 4v7a6 6 0 0012 0V4h-4v7a2 2 0 01-4 0V4z"/><path d="M6 8h4M14 8h4"/>',
   file:'<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
   panel:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16M17.5 8h1.5M17.5 11h1.5M17.5 14h1.5"/>',
+  fill:'<path d="M4.5 11.5L11 5l7.5 7.5L12 19z"/><path d="M4.5 11.5h14"/><path d="M20.5 15.5c0 1.6 1 2.4 1 3.4a1 1 0 01-2 0c0-1 1-1.8 1-3.4z" fill="currentColor"/>',
+  fcolor:'<path d="M7 15L12 3.5 17 15M8.8 11h6.4"/><rect x="4" y="18" width="16" height="3" rx=".5" fill="currentColor" stroke="none"/>',
   lbl:'<path d="M4 7V5h10v2M9 5v10M7 15h4"/><path d="M17 11v9M13.5 15.5h7M17 11l-1.5 1.5M17 11l1.5 1.5M17 20l-1.5-1.5M17 20l1.5-1.5"/>'};
 const IB=(id,ic,title,cls='')=>`<button type="button" id="${id}" class="tbtn ${cls}" title="${title}"><svg viewBox="0 0 24 24">${ICON[ic]}</svg></button>`;
 const IT=(id,ic,title,checked)=>`<label class="tbtn" title="${title}"><input type="checkbox" id="${id}" hidden${checked?' checked':''}><svg viewBox="0 0 24 24">${ICON[ic]}</svg></label>`;
@@ -133,10 +136,10 @@ const planRow=document.createElement('div');planRow.id='planRow';const planSvg=d
 planRow.appendChild(H(`<div id="tb">
 <div class="g">${IB('asideTog','panel','매장 정보 패널 펼치기/접기')}</div>
 <div class="g">${IB('tZin','zin','확대')}${IB('tZout','zout','축소')}${IB('tFit','fit','전체 보기')}</div>
-<div class="g ed">${IB('tSel','sel','선택 (V) · Ctrl+클릭: 여러 개 선택 · 선택한 공간은 끌어서 이동','on')}${IB('tMove','move','이동 (M) · 공간을 끌어 옮기기(Shift: 수평·수직)')}${IB('tLbl','lbl','라벨 위치 이동 (L) · 라벨을 끌어 옮기기 · 더블클릭: 원래 자리')}</div>
+<div class="g ed">${IB('tSel','sel','선택 (V) · Ctrl+클릭: 여러 개 선택 · 선택한 공간은 끌어서 이동','on')}${IB('tMove','move','이동 (M) · 공간을 끌어 옮기기(Shift: 수평·수직)')}${IB('tLbl','lbl','라벨 도구 (L) · 라벨 끌어 옮기기 · 더블클릭: 원래대로&#10;선택한 공간 라벨: Ctrl+Shift+&gt; / ] 크게 · Ctrl+Shift+&lt; / [ 작게 · Ctrl+B 굵게 · Ctrl+I 기울임 · Alt+방향키 10cm 이동(Shift: 1m)')}</div>
 <div class="g ed">${IB('edInsert','rect','매장 삽입 - 사각형')}${IB('edInsPoly','poly','매장 삽입 - 다각형')}</div>
 <div class="g ed">${IB('edMerge','merge','합치기 (2개 이상 선택)')}${IB('edSplit','split','분할 (1개 선택)')}${IB('edShape','shape','모양 편집 (1개 선택)')}${IB('edDel','del','삭제 (Delete)','danger')}</div>
-<div class="g ed">${IB('edRename','name','이름·코드·도면 표시명 변경 (F2 · 더블클릭)')}</div>
+<div class="g ed">${IB('edRename','name','이름·코드·도면 표시명 변경 (F2 · 더블클릭)')}${IB('edFill','fill','도형 채움색 (선택한 공간)')}${IB('edFcolor','fcolor','글자색 (선택한 공간 라벨)')}</div>
 <div class="g ed">${IB('edUndo','undo','되돌리기 (Ctrl+Z)')}${IB('edRedo','redo','다시 실행 (Ctrl+Y)')}</div>
 <div class="g ed">${IT('edOrig','orig','원본 윤곽 겹쳐 보기',false)}${IT('edSnap','snap','맞춤 안내선(공간을 옮길 때 주변 벽에 맞춤)',true)}</div>
 <div class="g ed">${IB('tFile','file','저장·불러오기·내보내기')}</div>
@@ -145,6 +148,7 @@ planRow.appendChild(H(`<div id="tb">
 <div class="row2">분할선 <label><input type="radio" name="edDir" value="h" checked> 가로선(위/아래)</label><label><input type="radio" name="edDir" value="v"> 세로선(좌/우)</label></div>
 <div class="row2">면적 비율 <input type="range" id="edRatio" min="10" max="90" step="5" value="50" style="width:110px"><span id="edRatioT">50 : 50</span></div>
 <div class="row2" style="justify-content:flex-end"><button type="button" id="edSplitX">취소</button><button type="button" id="edSplitGo" class="pri">분할</button></div></div>
+<div id="colorPop" class="pop"><h4 id="cpTitle">도형 채움색</h4><div id="cpSw"></div><div class="row2"><button type="button" id="cpDef">기본색으로</button><label class="row2" style="gap:6px">직접 선택 <input type="color" id="cpPick" style="width:40px;height:26px;padding:0;border:1px solid #ccc;border-radius:4px"></label></div></div>
 <div id="filePop" class="pop"><h4>저장 · 내보내기</h4>
 <div class="row2">편집안 이름 <input id="edPlanName" placeholder="예: A안" style="width:110px;height:26px"></div>
 <button type="button" id="edSave" class="pri" title="지금 편집 상태를 새 HTML 파일로 저장">편집 도면 저장(HTML)</button>
@@ -179,12 +183,12 @@ function centerY(v,r){const P=v.map(T),[x,y]=r.pt;
   return Object.assign({},r,{pt:[x,cy],hs:w(h1),vs:vsp[1]-vsp[0]})}
 if(typeof labelPoint==='function'){const LP0=labelPoint;labelPoint=function(node,v,e1,e2){
   const k=(node.getAttribute('d')||'')+'|'+(e1||0)+'|'+(e2||0);let r=LPC.get(k);
-  if(!r){r=LP0(node,v,e1,e2);if(!v.some(p=>p[2]))r=centerY(v,r);if(LPC.size>3000)LPC.clear();LPC.set(k,r)}
+  if(!r){r=LP0(node,v,e1,e2);if(!v.some(p=>p[2])&&e1&&r.hs/e1<r.vs*0.8)r=centerY(v,r);  /* 가로 폭이 글자 크기를 정하는 좁은 매장만 */if(LPC.size>3000)LPC.clear();LPC.set(k,r)}
   return {pt:[r.pt[0],r.pt[1]],w:r.w,h:r.h,r:r.r,hs:r.hs,vs:r.vs}}}
 /* 글자 맞춤 결과(한 줄/두 줄·글자 크기)도 도형·라벨 글자별로 기억한다 */
 const LFC=new Map();
 Store.prototype.render=function(layer,labels){
-    this.node=el('path',{d:this.rings?ringsPath(this.rings):pathOf(this.v),class:'store','data-id':this.id},layer);this.node.style.fill=COLORS[this.group];
+    this.node=el('path',{d:this.rings?ringsPath(this.rings):pathOf(this.v),class:'store','data-id':this.id},layer);this.node.style.fill=this.fill||COLORS[this.group];
     this.labels=labels;if(this.shop_cd||this.edited)this.layoutLabel();  /* 매장코드 미매핑 공간은 도면에 이름을 쓰지 않는다(툴팁·목록에는 표시) */
     this.bind()}
 Store.prototype.bind=function(){
@@ -205,6 +209,9 @@ const splitLines=(s,n)=>{if(n<=1)return [s];const w=s.split(/\s+/).filter(Boolea
 /* tspan 줄 간격: 가운데 정렬(n줄) */
 const lineDy=(fs,i,n)=>i?fs*1.1:-fs*0.55*(n-1);
 const WRAP_MIN_AREA=100000;
+/* 라벨 서식(아이디어 모드 단축키): lscale 글자 크기 배율 · lbold 굵게(없으면 기본) · litalic 기울임 */
+const applyLStyle=(t,d,defW)=>{if(d.lcolor)t.setAttribute('fill',d.lcolor);t.setAttribute('font-weight',d.lbold===undefined?defW:(d.lbold?700:400));if(d.litalic)t.setAttribute('font-style','italic');else t.removeAttribute('font-style');
+  t.dataset.ls=d.lscale||1;if(d.lpos||(d.lscale&&d.lscale!==1))t.dataset.man='1';else delete t.dataset.man};
 const bbArea=d=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;(d.rings?d.rings.flat(2):d.v).forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});return (x1-x0)*(y1-y0)};  /* 화면 재계산 없이 경계 상자 넓이(cm²) */
 /* 캔버스로 글자 폭 재기(글자 크기 1 기준). 라벨과 같은 글꼴·굵기 */
 const TCX=document.createElement('canvas').getContext('2d'),TWC=new Map();let TFAM=null;
@@ -219,7 +226,9 @@ Store.prototype.layoutLabel=function(){
     const W=L.hs*0.88,H=L.vs*0.8,base=Math.min(150,H*0.45);
     const t=txt(labels,x,y,this.labelText,base,700);this.labelEl=t;t.dataset.lid=this.id;
     const fk=(this.node.getAttribute('d')||'')+'|'+this.labelText+'|'+(code?1:0);
-    const finish=()=>{this.fitSize=+t.getAttribute('font-size');this.labelEl=t;
+    const finish=()=>{applyLStyle(t,this,700);this.fitBase=+t.getAttribute('font-size');this.fitSize=this.fitBase*(this.lscale||1);
+      if(this.fitSize!==this.fitBase){const f=this.fitSize,ts=t.querySelectorAll('tspan');t.setAttribute('font-size',f.toFixed(1));ts.forEach((e,i)=>e.setAttribute('dy',lineDy(f,i,ts.length)))}
+      this.labelEl=t;
       if(this.lpos){const[px,py]=T(this.lpos);this.lpt=[px,py];t.setAttribute('x',px);t.setAttribute('y',py);t.querySelectorAll('tspan').forEach(ts=>ts.setAttribute('x',px))}  /* 아이디어 모드에서 옮긴 라벨 위치(원본 좌표) */
       Plan.minFont&&Plan.minFont()};
     const multi=(lines,fs)=>{t.textContent='';t.setAttribute('font-size',fs.toFixed(1));lines.forEach((ln,i)=>{el('tspan',{x,dy:lineDy(fs,i,lines.length)},t).textContent=ln})};
@@ -264,7 +273,7 @@ if(typeof layout==='function'){
   const setFs=(t,fs)=>{const ts=t.querySelectorAll('tspan');t.setAttribute('font-size',fs.toFixed(1));ts.forEach((e,i)=>e.setAttribute('dy',lineDy(fs,i,ts.length)))};
   const mv=(t,x,y)=>{t.setAttribute('x',x);t.setAttribute('y',y);t.querySelectorAll('tspan').forEach(ts=>ts.setAttribute('x',x))};
   /* 글자 크기 1 기준 상자(기준점 x,y에 대한 상대값) */
-  const metric=t=>{const k=t.textContent+'|'+t.childElementCount;if(t._m&&t._m.k===k)return t._m;
+  const metric=t=>{const k=t.textContent+'|'+t.childElementCount+'|'+t.getAttribute('font-weight')+'|'+t.getAttribute('font-style');if(t._m&&t._m.k===k)return t._m;
     const fs=+t.getAttribute('font-size')||1,x=+t.getAttribute('x'),y=+t.getAttribute('y'),b=t.getBBox();
     return t._m={k,ox:(b.x-x)/fs,oy:(b.y-y)/fs,w:b.width/fs,h:b.height/fs}};
   const boxAt=(m,fs,x,y)=>[x+m.ox*fs,y+m.oy*fs,x+(m.ox+m.w)*fs,y+(m.oy+m.h)*fs];
@@ -287,28 +296,31 @@ if(typeof layout==='function'){
     ST.forEach(s=>{s._mt=metric(s.labelEl);ptsOf(s)});
     const flw=FLW.map(e=>{const isB=e.classList.contains('badge')||e.classList.contains('badge-t');if(isB){const b=e.getBBox();return {e,isB,box:[b.x,b.y,b.x+b.width,b.y+b.height]}}
       return {e,isB,m:metric(e),fs0:+e.dataset.fs,x0:+e.dataset.x,y0:+e.dataset.y}});
-    const fac=FAC.map(t=>({t,m:metric(t),f0:+t.dataset.fs,x:+t.getAttribute('x'),y:+t.getAttribute('y'),a:+t.dataset.a||0}));
+    const fac=FAC.map(t=>({t,m:metric(t),f0:+t.dataset.fs,x:+t.getAttribute('x'),y:+t.getAttribute('y'),a:+t.dataset.a||0,sc:+t.dataset.ls||1,man:!!t.dataset.man}));
     /* 3) 계산 */
     ST.forEach(s=>{s._fs=s.fitSize;s._x=s.lpt[0];s._y=s.lpt[1];s._b=boxAt(s._mt,s._fs,s._x,s._y)});
     const fixed=[];
     flw.forEach(o=>{if(o.isB){fixed.push(o.box);o.show=true;return}
       const fs=Math.max(o.fs0,FLOWPX*u);o.fs=fs;o.show=false;
       for(const[dx,dy]of NUD){const x=o.x0+dx*fs,y=o.y0+dy*fs,b=boxAt(o.m,fs,x,y);if(!ST.some(s=>ov(s._b,b))&&!fixed.some(a=>ov(a,b))){fixed.push(b);o.x=x;o.y=y;o.show=true;break}}});
-    ST.slice().sort((a,b)=>b._pc.area-a._pc.area).forEach(s=>{const want=MINPX*u;if(s.fitSize>=want)return;
-      /* 직접 옮긴 라벨(lpos): 자리는 그대로 두고, 글자 크기는 다른 라벨처럼 화면 최소 크기까지 키워 옮기기 전과 같은 크기로 보이게 한다 */
-      if(s.lpos){s._fs=want;s._b=boxAt(s._mt,want,s._x,s._y);return}
+    ST.slice().sort((a,b)=>b._pc.area-a._pc.area).forEach(s=>{const want=MINPX*u,sc=s.lscale||1;
+      /* 직접 옮기거나 크기를 바꾼 라벨: 자리는 그대로, 글자 크기 = (다른 라벨과 같은 기준 크기) × 배율 */
+      if(s.lpos||sc!==1){const f=Math.max(s.fitBase||s.fitSize,want)*sc;s._fs=f;s._b=boxAt(s._mt,f,s._x,s._y);return}
+      if(s.fitSize>=want)return;
       const obs=ST.filter(o=>o!==s).map(o=>o._b).concat(fixed),free=b=>!obs.some(a=>ov(a,b));
       const pts=[s.lpt].concat(s._pc.pts).sort((p,q)=>Math.hypot(p[0]-s.lpt[0],p[1]-s.lpt[1])-Math.hypot(q[0]-s.lpt[0],q[1]-s.lpt[1]));
       for(const f of [1,0.85,0.72,0.6]){const fs=Math.max(s.fitSize,want*f);if(fs<=s.fitSize&&f<1)break;
         for(const[x,y]of pts){const b=boxAt(s._mt,fs,x,y);if(free(b)){s._fs=fs;s._x=x;s._y=y;s._b=b;return}}}});
     const all=ST.map(s=>s._b).concat(fixed);
-    fac.sort((a,b)=>b.a-a.a).forEach(o=>{o.show=false;for(const px of [FACPX,FACPX*0.85]){const fs=Math.max(o.f0,px*u),b=boxAt(o.m,fs,o.x,o.y);if(!all.some(a=>ov(a,b))){all.push(b);o.fs=fs;o.show=true;return}}});
+    fac.sort((a,b)=>b.man-a.man||b.a-a.a).forEach(o=>{o.show=false;for(const px of [FACPX,FACPX*0.85]){const fs=Math.max(o.f0,px*u*o.sc),b=boxAt(o.m,fs,o.x,o.y);if(o.man||!all.some(a=>ov(a,b))){all.push(b);o.fs=fs;o.show=true;return}}});
     /* 4) 쓰기: 한 번에 적용 */
     ST.forEach(s=>{if(s._fs!==s.fitSize)setFs(s.labelEl,s._fs);if(s._x!==s.lpt[0]||s._y!==s.lpt[1])mv(s.labelEl,s._x,s._y)});
     flw.forEach(o=>{if(o.isB)return;const e=o.e;if(!o.show){e.style.display='none';return}e.setAttribute('font-size',o.fs.toFixed(1));if(e.getAttribute('stroke'))e.setAttribute('stroke-width',(o.fs*0.16).toFixed(1));e.setAttribute('x',o.x);e.setAttribute('y',o.y)});
     fac.forEach(o=>{if(!o.show){o.t.style.display='none';return}o.t.setAttribute('font-size',o.fs.toFixed(1))})}}
 Plan.setShowCode=on=>{Plan.showCode=on;Plan.stores.forEach(s=>(s.shop_cd||s.edited)&&s.layoutLabel())};
-['rings','edited','lpos'].forEach(k=>SKIP.add(k));LABEL.from='원본 매장';LABEL.label='도면 표시명';
+['rings','edited','lpos','lscale','lbold','litalic','fitBase','fill','lcolor'].forEach(k=>SKIP.add(k));
+/* 사용자 채움색이 있으면 색 되돌리기(resetColors) 때도 그 색으로 */
+Plan.resetColors=()=>Plan.stores.forEach(s=>s.setColor(s.fill||COLORS[s.group]));LABEL.from='원본 매장';LABEL.label='도면 표시명';
 /* 상세 정보: 기본 보기와 아이디어 모드가 같은 형식을 쓴다(면적 비공개 공간은 면적만 '비공개') */
 /* 상세 정보(기본 보기·아이디어 모드 공통, 면적 비공개 공간은 면적만 '비공개'). 관련 항목은 한 줄로 묶어 공간을 줄인다
    - 매장명 + 매장코드 / 공간명 + (공간ID) / 공간유형 · 면적(평) / 그 밖의 항목(도면 표시명·원본·외부 연동 값)은 아래에 이어서 */
@@ -393,9 +405,9 @@ const dirty=ids=>[].concat(ids).forEach(id=>{RK.delete(id);FK.delete(id)});  /* 
 function drawFacs(){const want=new Map(state.facs.map(f=>[f.space_id,f]));
   [...FACN.entries()].forEach(([id,o])=>{const f=want.get(id);if(f&&FK.get(id)===keyOf(f))return;o.node.remove();o.lbl&&o.lbl.remove();FACN.delete(id);FK.delete(id)});
   state.facs.forEach(f=>{if(FACN.has(f.space_id))return;const ev=IS_ELEV(f),mv=IS_MOVEF(f);
-    const node=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v),class:facCls(f)+' efac'+(f.edited?' edited':''),'data-fid':f.space_id},mv?FB_:FL_);
+    const node=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v),class:facCls(f)+' efac'+(f.edited?' edited':''),'data-fid':f.space_id},mv?FB_:FL_);if(f.fill)node.style.fill=f.fill;
     const L=labelPoint(node,f.v),size=Math.min(70,Math.max(22,L.r*0.55)),lp=f.lpos?T(f.lpos):L.pt;
-    const t=txt(mv?FW_:FT_,lp[0],lp[1],f.label||(ev?'EV':dispName(f)),ev?Math.max(size,40):size,ev?700:0,ev?'#2f4f7a':'#555');t.dataset.a=L.w*L.h;t.dataset.lid=f.space_id;t.classList.add('efac-lbl');
+    const t=txt(mv?FW_:FT_,lp[0],lp[1],f.label||(ev?'EV':dispName(f)),(ev?Math.max(size,40):size)*(f.lscale||1),ev?700:0,ev?'#2f4f7a':'#555');t.dataset.a=L.w*L.h;t.dataset.lid=f.space_id;t.classList.add('efac-lbl');applyLStyle(t,f,ev?700:400);
     node.addEventListener('click',e=>{if(!ED.mode)return;e.stopPropagation();Plan.pick(f.space_id,e)});
     node.addEventListener('dblclick',e=>{if(!ED.mode)return;e.stopPropagation();renameItem(f.space_id)});
     node.addEventListener('mousemove',e=>Plan.tip(e,`${f.name||f.space_nm} · ${f.type}`+(f.edited?' · 편집':'')));node.addEventListener('mouseleave',()=>Plan.tip(null));
@@ -426,8 +438,8 @@ function rebuild(){
   ED.picked=ED.picked.filter(id=>itemOf(id));
   detail.innerHTML=ED.mode?'':'매장을 클릭하면 상세 정보가 표시됩니다.';
   refreshPick();renderLog();Plan.minFont()}
-function commit(next,msg){ED.undo.push(JSON.stringify({state,seq:ED.seq}));ED.redo=[];state=next;state.log=state.log.concat([{t:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}),msg}]);splitClose(true);rebuild()}
-function undo(){if(!ED.undo.length)return;ED.redo.push(JSON.stringify({state,seq:ED.seq}));const o=JSON.parse(ED.undo.pop());state=o.state;if(!state.facs)state.facs=clone(BASE_F);ED.picked=[];splitClose(true);rebuild()}
+function commit(next,msg){ED.burst=null;window.__fpSaved=false;ED.undo.push(JSON.stringify({state,seq:ED.seq}));ED.redo=[];state=next;state.log=state.log.concat([{t:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}),msg}]);splitClose(true);rebuild()}
+function undo(){ED.burst=null;if(!ED.undo.length)return;ED.redo.push(JSON.stringify({state,seq:ED.seq}));const o=JSON.parse(ED.undo.pop());state=o.state;if(!state.facs)state.facs=clone(BASE_F);ED.picked=[];splitClose(true);rebuild()}
 function redo(){if(!ED.redo.length)return;ED.undo.push(JSON.stringify({state,seq:ED.seq}));const o=JSON.parse(ED.redo.pop());state=o.state;if(!state.facs)state.facs=clone(BASE_F);ED.picked=[];splitClose(true);rebuild()}
 function resetAll(){if(!state.log.length)return;if(!confirm('모든 편집을 지우고 원본 도면으로 되돌릴까요?'))return;ED.undo.push(JSON.stringify({state,seq:ED.seq}));ED.redo=[];state={stores:clone(BASE),facs:clone(BASE_F),log:[]};ED.picked=[];splitClose(true);rebuild()}
 
@@ -444,7 +456,7 @@ function refreshPick(){
   document.getElementById('edSel').textContent=P.length?(P.length===1?`${dispName(P[0])} · ${areaTxt(P[0])}`:`선택 ${P.length}개 · ${sumTxt(P)}`):'공간을 클릭해 선택하세요 (Ctrl+클릭: 여러 개)';
   document.getElementById('edClear').style.display=P.length?'':'none';
   document.getElementById('edMerge').disabled=P.length<2;document.getElementById('edSplit').disabled=P.length!==1;document.getElementById('edRename').disabled=P.length!==1;document.getElementById('edShape').disabled=P.length!==1;
-  document.getElementById('edDel').disabled=!P.length;
+  document.getElementById('edDel').disabled=!P.length;document.getElementById('edFill').disabled=!P.length;document.getElementById('edFcolor').disabled=!P.length;if(!P.length)closeColor();
   document.getElementById('edUndo').disabled=!ED.undo.length;document.getElementById('edRedo').disabled=!ED.redo.length;
   if(ED.mode)detail.innerHTML=P.length?(P.length>1?`<p style="margin:0 0 8px"><b>선택 ${P.length}개</b> · ${sumTxt(P)}</p>`:'')+P.map(d=>detailHTML(d)).join('<hr style="border:0;border-top:1px dashed #ddd;margin:8px 0">')
     :'<b>아이디어 모드</b><br><span class="c">① 매장·시설을 클릭하면 그것만 선택되고, Ctrl+클릭으로 여러 개를 고릅니다 · 빈 곳 클릭/Esc: 선택 해제<br>② 왼쪽 도구: 이동(선택한 공간 끌기) · 매장 삽입(사각형/다각형) · 합치기 · 분할 · 모양 편집 · 삭제 · 이름/도면 표시명 변경(더블클릭)<br>③ 결과는 화면에서만 바뀌며 원본 도면에는 반영되지 않습니다</span>';
@@ -570,7 +582,7 @@ function exportJSON(){const ids=new Set(allOf().map(d=>d.space_id));
   const out={floor:FLOOR_ID,name:ED.planName||'',exported_at:new Date().toISOString(),seq:ED.seq,state,note:'화면 시뮬레이션 결과(공간관리시스템 미반영). 좌표 단위 cm, Y축 위쪽',
     log:state.log,removed:BASE.concat(BASE_F).filter(d=>!ids.has(d.space_id)).map(d=>({space_id:d.space_id,name:d.name,shop_cd:d.shop_cd})),
     added:allOf().filter(d=>d.edited).map(d=>Object.assign({space_id:d.space_id,type:d.type,name:d.name,from:d.from,polygons:d.rings},hid(d)?{area_note:'비공개'}:{area_m2:areaNow(d)}))};
-  download(`${FLOOR_FILE}_편집시뮬레이션_${stamp()}.json`,JSON.stringify(out,null,1),'application/json')}
+  download(`${FLOOR_FILE}_편집시뮬레이션_${stamp()}.json`,JSON.stringify(out,null,1),'application/json');window.__fpSaved=true}
 
 /* ----- 화면 연결 ----- */
 const $=id=>document.getElementById(id);
@@ -581,6 +593,26 @@ function setTool(t){ED.tool=t;document.body.classList.toggle('tool-move',t==='mo
 $('edToggle').onclick=()=>{if(window.SHAPE||window.INS)return;ED.mode=!ED.mode;document.body.classList.toggle('editing',ED.mode);$('edToggle').textContent=ED.mode?'✓ 아이디어 모드 종료':'✎ 아이디어 모드';
   if(!ED.mode){ED.picked=[];splitClose(true);closePops();setTool('select');detail.innerHTML='매장을 클릭하면 상세 정보가 표시됩니다.'}refreshPick();Plan.minFont()};
 $('edMerge').onclick=merge;$('edSplit').onclick=splitOpen;$('edSplitGo').onclick=split;$('edSplitX').onclick=()=>splitClose();
+/* ----- 도형 채움색·글자색: 선택한 공간에 팔레트 색 또는 직접 고른 색 적용, '기본색으로'는 원래 색 ----- */
+/* 팔레트: 첫 줄 = 도면 기본 매장색 6색(lux·rtw·jw·acc·etc·공실), 그다음 = 백화점 뉴트럴(웜톤) 18색 / 글자색 = 뉴트럴 10색 */
+const PAL={fill:['#f6e3cf','#e1ecdc','#e6def3','#fde0c8','#e8eef6','#f2f4f7',
+    '#f7f1e8','#efe4d2','#e3d3bb','#d6c2a3','#c9b08c','#e9e4dc','#d8d2c7','#c2bbaf','#e4ebe1','#cddbc9','#b3c7ae','#e6e9ee','#cfd6df','#b5c0cd','#f3e1dc','#e6c6bd','#d4a99c','#bfa18f'],
+  font:['#2b2622','#5c544b','#8a7f72','#ffffff','#8c2f1f','#a8642a','#5e6b3a','#3d5a6c','#6b4c7a','#c8102e']};
+const PAL_NAME={'#f6e3cf':'도면 기본색 1','#e1ecdc':'도면 기본색 2','#e6def3':'도면 기본색 3','#fde0c8':'도면 기본색 4','#e8eef6':'도면 기본색 5','#f2f4f7':'도면 기본색(공실)'};
+const colorPop=$('colorPop');let cpKind=null;
+function closeColor(){colorPop.classList.remove('open');cpKind=null;$('edFill').classList.remove('on');$('edFcolor').classList.remove('on')}
+function openColor(kind,btn){if(!ED.picked.length)return;if(cpKind===kind){closeColor();return}closePops();splitClose(true);closeColor();cpKind=kind;
+  $('cpTitle').textContent=kind==='fill'?'도형 채움색':'글자색';
+  $('cpSw').innerHTML=PAL[kind].map((c,i)=>`<button type="button" data-c="${c}" title="${PAL_NAME[c]?PAL_NAME[c]+' ':''}${c}" style="background:${c}"></button>${kind==='fill'&&i===5?'<span class="cpSep"></span>':''}`).join('');
+  const d=itemOf(ED.picked[0]);$('cpPick').value=(kind==='fill'?(d.fill||COLORS[d.group]||'#dcdcdc'):(d.lcolor||'#222222')).slice(0,7);
+  colorPop.style.top=(btn.getBoundingClientRect().top-planRow.getBoundingClientRect().top-8)+'px';colorPop.classList.add('open');btn.classList.add('on')}
+function applyColor(c){const kind=cpKind;const P=ED.picked.map(id=>itemOf(id)).filter(Boolean);if(!P.length||!kind)return;
+  const k=kind==='fill'?'fill':'lcolor',next=clone(state);P.forEach(d=>{const t=itemOf(d.space_id,next);if(c)t[k]=c;else delete t[k]});
+  const names=P.length>2?`${dispName(P[0])} 외 ${P.length-1}개`:P.map(dispName).join(', ');
+  commit(next,`${kind==='fill'?'채움색':'글자색'} ${c||'기본색'}: ${names}`);cpKind=kind}
+$('edFill').onclick=e=>openColor('fill',e.currentTarget);$('edFcolor').onclick=e=>openColor('font',e.currentTarget);
+$('cpSw').onclick=e=>{const c=e.target.dataset&&e.target.dataset.c;if(c)applyColor(c)};$('cpDef').onclick=()=>applyColor(null);$('cpPick').onchange=e=>applyColor(e.target.value);
+document.addEventListener('click',e=>{if(cpKind&&!colorPop.contains(e.target)&&!e.target.closest('#edFill,#edFcolor')&&!e.target.closest('.store,.efac'))closeColor()});
 $('edRename').onclick=rename;$('edDel').onclick=delSel;$('edUndo').onclick=undo;$('edRedo').onclick=redo;$('edReset').onclick=()=>{closePops();resetAll()};
 $('tSel').onclick=()=>setTool('select');$('tMove').onclick=()=>setTool('move');$('tLbl').onclick=()=>setTool('label');
 $('tFile').onclick=e=>{e.stopPropagation();const o=!filePop.classList.contains('open');closePops();splitClose(true);
@@ -594,14 +626,40 @@ $('edRatio').oninput=e=>{ED.ratio=+e.target.value;$('edRatioT').textContent=`${E
 $('edOrig').onchange=e=>{ORL.style.display=e.target.checked?'':'none'};
 /* 빈 곳 클릭: 선택 해제 */
 svg.addEventListener('click',e=>{if(!ED.mode||window.SHAPE||window.INS||ED.splitting)return;const t=e.target;if(t.closest&&t.closest('.store,.efac'))return;if(ED.picked.length){ED.picked=[];refreshPick()}});
-document.addEventListener('keydown',e=>{if(!ED.mode||window.SHAPE||window.INS||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||document.querySelector('#fpDlg[open]'))return;const k=e.key.toLowerCase();
-  if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo()}
-  else if(k==='escape'){if(ED.splitting)splitClose();else{ED.picked=[];refreshPick()}closePops()}
-  else if(k==='delete'||k==='backspace'){if(ED.picked.length){e.preventDefault();delSel()}}
-  else if(k==='f2'){e.preventDefault();rename()}
-  else if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&k==='v')setTool('select');
-  else if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&k==='m')setTool('move');
-  else if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&k==='l')setTool('label')});
+/* ----- 라벨 서식 단축키(선택한 공간): 크게/작게 · 굵게 · 기울임 · 위치 미세 이동 -----
+   같은 키를 1.5초 안에 이어 누르면 변경 내역 한 줄·되돌리기 한 번으로 묶는다 */
+function lblPosOf(id){const s=Plan.get(id);if(s&&s.lpt)return [s.lpt[0],maxY-s.lpt[1]];const f=FACN.get(id);if(f&&f.lbl)return [+f.lbl.getAttribute('x'),maxY-+f.lbl.getAttribute('y')];return null}
+function styleSel(kind,arg){const P=ED.picked.map(id=>itemOf(id)).filter(Boolean);if(!P.length)return;
+  const next=clone(state),ids=P.map(d=>d.space_id),key=kind+(kind==='nudge'?'':'')+'|'+ids.join(),now=Date.now(),cont=ED.burst&&ED.burst.key===key&&now-ED.burst.t<1500;
+  const defB=d=>isFac(d)?IS_ELEV(d):true,names=P.length>2?`${dispName(P[0])} 외 ${P.length-1}개`:P.map(dispName).join(', ');
+  let msg;
+  if(kind==='size'){P.forEach(d=>{const t=itemOf(d.space_id,next);let v=Math.round((t.lscale||1)*(arg>0?1.1:1/1.1)*1000)/1000;v=Math.min(4,Math.max(0.3,v));if(Math.abs(v-1)<0.02)delete t.lscale;else t.lscale=v});
+    const v=itemOf(ids[0],next).lscale||1;msg=`라벨 크기 ${Math.round(v*100)}%: ${names}`}
+  else if(kind==='bold'){const on=!((P[0].lbold!==undefined)?P[0].lbold:defB(P[0]));P.forEach(d=>{const t=itemOf(d.space_id,next);if(on===defB(d))delete t.lbold;else t.lbold=on});msg=`라벨 ${on?'굵게':'보통 굵기'}: ${names}`}
+  else if(kind==='italic'){const on=!P[0].litalic;P.forEach(d=>{const t=itemOf(d.space_id,next);if(on)t.litalic=true;else delete t.litalic});msg=`라벨 기울임 ${on?'켬':'끔'}: ${names}`}
+  else if(kind==='nudge'){const[dx,dy]=arg;let ok=false;P.forEach(d=>{const t=itemOf(d.space_id,next),p0=d.lpos||lblPosOf(d.space_id);if(!p0)return;t.lpos=[Math.round(p0[0]+dx),Math.round(p0[1]+dy)];ok=true});if(!ok)return;
+    const tot=cont?[ED.burst.dx+dx,ED.burst.dy+dy]:[dx,dy];msg=`라벨 위치 변경: ${names} ${mvDir(tot[0],tot[1])}`;
+    if(cont){ED.burst.dx=tot[0];ED.burst.dy=tot[1]}}
+  if(cont){next.log=next.log.slice(0,-1).concat([Object.assign({},next.log[next.log.length-1],{msg})]);state=next;ED.burst.t=now;rebuild();return}
+  commit(next,msg);ED.burst={key,t:now,dx:kind==='nudge'?arg[0]:0,dy:kind==='nudge'?arg[1]:0}}
+/* 단축키는 키 위치(e.code)로 판단 → 한글 입력 상태에서도 동작 */
+document.addEventListener('keydown',e=>{if(!ED.mode||window.SHAPE||window.INS||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||document.querySelector('#fpDlg[open]'))return;
+  const c=e.code,k=e.key,mod=e.ctrlKey||e.metaKey,plain=!mod&&!e.altKey&&!e.shiftKey,has=ED.picked.length>0;
+  if(mod&&!e.altKey&&c==='KeyZ'){e.preventDefault();e.shiftKey?redo():undo()}else if(mod&&!e.altKey&&c==='KeyY'){e.preventDefault();redo()}
+  else if(has&&((mod&&e.shiftKey&&c==='Period')||(plain&&c==='BracketRight'))){e.preventDefault();styleSel('size',1)}
+  else if(has&&((mod&&e.shiftKey&&c==='Comma')||(plain&&c==='BracketLeft'))){e.preventDefault();styleSel('size',-1)}
+  else if(has&&mod&&!e.shiftKey&&!e.altKey&&c==='KeyB'){e.preventDefault();styleSel('bold')}
+  else if(has&&mod&&!e.shiftKey&&!e.altKey&&c==='KeyI'){e.preventDefault();styleSel('italic')}
+  else if(has&&/^Arrow/.test(k)&&!mod&&(e.altKey||ED.tool==='label')){e.preventDefault();e.stopPropagation();const st=e.shiftKey?100:10;
+    styleSel('nudge',k==='ArrowLeft'?[-st,0]:k==='ArrowRight'?[st,0]:k==='ArrowUp'?[0,st]:[0,-st])}
+  else if(k==='Escape'){if(ED.splitting)splitClose();else{ED.picked=[];refreshPick()}closePops()}
+  else if(k==='Delete'||k==='Backspace'){if(has){e.preventDefault();delSel()}}
+  else if(k==='F2'){e.preventDefault();rename()}
+  else if(plain&&c==='KeyV')setTool('select');
+  else if(plain&&c==='KeyM')setTool('move');
+  else if(plain&&c==='KeyL')setTool('label')},true);
+/* Alt+←(뒤로 가기) 등으로 페이지를 벗어날 때 편집 내용이 있으면 확인 */
+window.addEventListener('beforeunload',e=>{if(state.log.length&&!window.__fpSaved){e.preventDefault();e.returnValue=''}});
 /* 편집으로 생긴 매장도 라벨을 표시하도록 다시 그린다 */
 rebuild();
 
@@ -791,7 +849,7 @@ function saveHTML(){
     out+=`<script${attrs}>`+(s.id==='saved-state'?data:s.textContent)+'<\/script>\n'});
   out+='</body></html>';
   const safe=ED.planName.replace(/[\\/:*?"<>|\s]+/g,'_')||'편집';
-  download(`${FLOOR_FILE}_${safe}_${stamp()}.html`,out,'text/html;charset=utf-8');
+  download(`${FLOOR_FILE}_${safe}_${stamp()}.html`,out,'text/html;charset=utf-8');window.__fpSaved=true;
   showPlanTag()}
 
 /* 2) 불러오기: [JSON 저장]으로 만든 파일을 읽어 그 배치안으로 바꾼다(되돌리기 가능) */
@@ -970,16 +1028,16 @@ let LD=null,ldBlock=false;
 function ldDown(e){if(!ED.mode||ED.tool!=='label'||window.SHAPE||window.INS||e.button!==0)return;
   const t=e.target.closest&&e.target.closest('text[data-lid]');if(!t)return;const id=t.dataset.lid,d=itemOf(id);if(!d)return;
   e.stopPropagation();e.preventDefault();
-  LD={id,d,t,x0:+t.getAttribute('x'),y0:+t.getAttribute('y'),sx:e.clientX,sy:e.clientY,moved:false,dx:0,dy:0}}
+  LD={id,d,t,x0:+t.getAttribute('x'),y0:+t.getAttribute('y'),sx:e.clientX,sy:e.clientY,moved:false,dx:0,dy:0,add:e.ctrlKey||e.metaKey}}
 [LL,FT_,FW_].forEach(L=>L.addEventListener('pointerdown',ldDown));
 window.addEventListener('pointermove',e=>{if(!LD)return;if(!LD.moved){if(Math.hypot(e.clientX-LD.sx,e.clientY-LD.sy)<3)return;LD.moved=true}
   const u=unit();LD.dx=(e.clientX-LD.sx)*u;LD.dy=(e.clientY-LD.sy)*u;LD.t.setAttribute('transform',`translate(${LD.dx},${LD.dy})`);
   Plan.tip(e,`${dispName(LD.d)} 라벨 이동`)});
-window.addEventListener('pointerup',()=>{if(!LD)return;const m=LD;LD=null;Plan.tip(null);if(!m.moved)return;ldBlock=true;setTimeout(()=>ldBlock=false,0);
+window.addEventListener('pointerup',()=>{if(!LD)return;const m=LD;LD=null;Plan.tip(null);if(!m.moved){ldBlock=true;setTimeout(()=>ldBlock=false,0);pick(m.id,{ctrlKey:m.add});return}  /* 라벨 클릭 = 그 공간 선택(Ctrl: 여러 개) */ldBlock=true;setTimeout(()=>ldBlock=false,0);
   const nx=m.x0+m.dx,ny=m.y0+m.dy,next=clone(state),t=itemOf(m.id,next);t.lpos=[Math.round(nx),Math.round(maxY-ny)];
   ED.picked=[m.id];commit(next,`라벨 위치 변경: ${dispName(m.d)}`)});
 [LL,FT_,FW_].forEach(L=>L.addEventListener('dblclick',e=>{if(!ED.mode||ED.tool!=='label')return;const t=e.target.closest&&e.target.closest('text[data-lid]');if(!t)return;
-  e.stopPropagation();const d=itemOf(t.dataset.lid);if(!d||!d.lpos)return;const next=clone(state);delete itemOf(d.space_id,next).lpos;commit(next,`라벨 위치 되돌리기: ${dispName(d)}`)}));
+  e.stopPropagation();const d=itemOf(t.dataset.lid);if(!d||!(d.lpos||d.lscale||d.lbold!==undefined||d.litalic))return;const next=clone(state),q=itemOf(d.space_id,next);['lpos','lscale','lbold','litalic'].forEach(k=>delete q[k]);commit(next,`라벨 원래대로(위치·서식): ${dispName(d)}`)}));
 svg.addEventListener('click',e=>{if(ldBlock){e.stopPropagation();e.preventDefault()}},true);
 
 
@@ -1006,11 +1064,11 @@ function drawPlan(pptx,slide,stores,box,opt={}){
   /* 1) 시설(매장 아래) */
   /* opt.fac=false: 시설 제외 / opt.flow=false: 이동 시설(에스컬레이터·보이드·엘리베이터) 제외. 엘리베이터는 화면과 같이 이동 시설로 본다 */
   const showFac=f=>IS_MOVEF(f)?opt.flow!==false:opt.fac!==false,FACS=opt.facs||state.facs;
-  FACS.filter(showFac).forEach(f=>poly(geomOf(f),{fill:{color:FAC_FILL(f)},line:changed.has(f.space_id)?{color:'B4005A',width:1,dashType:'dash'}:{color:'888888',width:0.25},objectName:f.name||f.space_nm}));
+  FACS.filter(showFac).forEach(f=>poly(geomOf(f),{fill:{color:f.fill?hex(f.fill):FAC_FILL(f)},line:changed.has(f.space_id)?{color:'B4005A',width:1,dashType:'dash'}:{color:'888888',width:0.25},objectName:f.name||f.space_nm}));
   /* 시설 이름(일정 크기 이상만, 회색 작은 글씨) */
   if(opt.facLabel)FACS.filter(showFac).forEach(f=>{const G=geomOf(f);if(areaOf(G)<12)return;const tmp=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v)},svg),L=labelPoint(tmp,f.v);tmp.remove();
-    const t=f.label||(IS_ELEV(f)?'EV':dispName(f)),fs=Math.max(4.5,Math.min(7,L.r*2*sc*72/Math.max(emw(t),1)*0.9)),lp=f.lpos?T(f.lpos):L.pt,cx=ox+(lp[0]-ext[0])*sc,cy=oy+(lp[1]-ext[1])*sc,tw=emw(t)*fs/72*1.1+0.05;
-    slide.addText(t,{x:cx-tw/2,y:cy-fs/72*0.75,w:tw,h:fs/72*1.5,fontFace:PFONT,fontSize:Math.round(fs*2)/2,color:'666666',align:'center',valign:'middle',margin:0,wrap:false,objectName:'시설 '+t})});
+    const t=f.label||(IS_ELEV(f)?'EV':dispName(f)),fs=Math.max(4.5,Math.min(7,L.r*2*sc*72/Math.max(emw(t),1)*0.9))*(f.lscale||1),lp=f.lpos?T(f.lpos):L.pt,cx=ox+(lp[0]-ext[0])*sc,cy=oy+(lp[1]-ext[1])*sc,tw=emw(t)*fs/72*1.1+0.05;
+    slide.addText(t,{x:cx-tw/2,y:cy-fs/72*0.75,w:tw,h:fs/72*1.5,fontFace:PFONT,fontSize:Math.round(fs*2)/2,bold:f.lbold===undefined?IS_ELEV(f):f.lbold,italic:!!f.litalic,color:f.lcolor?hex(f.lcolor):'666666',align:'center',valign:'middle',margin:0,wrap:false,objectName:'시설 '+t})});
   if(opt.flow!==false)FLOW.voids.forEach(v=>{const Q=v.map(P),x0=Math.min(...Q.map(p=>p[0])),y0=Math.min(...Q.map(p=>p[1])),x1=Math.max(...Q.map(p=>p[0])),y1=Math.max(...Q.map(p=>p[1]));
     slide.addText('OPEN',{shape:pptx.ShapeType.rect,x:x0,y:y0,w:x1-x0,h:y1-y0,fill:{color:'FFFFFF'},line:{color:'7A8794',width:0.75,dashType:'dash'},fontFace:PFONT,fontSize:7,color:'7A8794',align:'center',valign:'middle',margin:0,objectName:'보이드'})});
   if(opt.flow!==false)FLOW.esc.forEach(e=>{const a=P([e.b[0],e.b[3]]),b=P([e.b[2],e.b[1]]);
@@ -1018,12 +1076,12 @@ function drawPlan(pptx,slide,stores,box,opt={}){
   /* 2) 매장(큰 매장 먼저 → 작은 매장이 위에) */
   const list=stores.map(d=>({d,G:geomOf(d)})).map(o=>(o.a=areaOf(o.G),o)).sort((p,q)=>q.a-p.a);
   list.forEach(({d,G})=>{const ch=changed.has(d.space_id);
-    poly(G,{fill:{color:hex(COLORS[d.group])},line:ch?{color:'B4005A',width:1.5,dashType:'dash'}:{color:'222222',width:0.75},objectName:d.name+(d.shop_cd?` (${d.shop_cd})`:'')})});
+    poly(G,{fill:{color:hex(d.fill||COLORS[d.group])},line:ch?{color:'B4005A',width:1.5,dashType:'dash'}:{color:'222222',width:0.75},objectName:d.name+(d.shop_cd?` (${d.shop_cd})`:'')})});
   /* 3) 매장명(매장코드가 있거나 아이디어 모드에서 만든 매장) */
   list.forEach(({d})=>{if(!d.shop_cd&&!d.edited)return;const L=labelOf(d),lp=d.lpos?T(d.lpos):L.pt,[cx,cy]=[ox+(lp[0]-ext[0])*sc,oy+(lp[1]-ext[1])*sc],nm=d.label||d.name;
-    const W=L.hs*0.9*sc,H=L.vs*0.8*sc,fs=Math.max(5,Math.min(opt.maxFont||12,W*72/Math.max(emw(nm),1),H*72*0.55));
+    const W=L.hs*0.9*sc,H=L.vs*0.8*sc,fs=Math.max(5,Math.min(opt.maxFont||12,W*72/Math.max(emw(nm),1),H*72*0.55))*(d.lscale||1);
     const tw=Math.max(W,emw(nm)*fs/72*1.05),th=fs/72*1.5;
-    slide.addText(nm,{x:cx-tw/2,y:cy-th/2,w:tw,h:th,fontFace:PFONT,fontSize:Math.round(fs*2)/2,bold:true,color:changed.has(d.space_id)?'B4005A':'222222',align:'center',valign:'middle',margin:0,wrap:false,objectName:'라벨 '+d.name})});
+    slide.addText(nm,{x:cx-tw/2,y:cy-th/2,w:tw,h:th,fontFace:PFONT,fontSize:Math.round(fs*2)/2,bold:d.lbold!==false,italic:!!d.litalic,color:d.lcolor?hex(d.lcolor):changed.has(d.space_id)?'B4005A':'222222',align:'center',valign:'middle',margin:0,wrap:false,objectName:'라벨 '+d.name})});
   return sc}
 /* 기본 표 스타일(보통 스타일 2 - 강조 1과 비슷하게) */
 function addTbl(pptx,slide,head,rows,o){const H=head.map(t=>({text:t,options:{bold:true,color:'FFFFFF',fill:{color:'4472C4'},align:'center'}}));
