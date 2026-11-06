@@ -91,6 +91,8 @@ main>aside{display:flex;flex-direction:column;overflow:hidden!important;min-heig
 body.editing .efac{cursor:pointer}.efac.picked{stroke:#1d5bd8!important;stroke-width:40!important;stroke-dasharray:none}.efac.edited{stroke:#b4005a;stroke-dasharray:50 25;stroke-width:14}
 body.editing.tool-move .store,body.editing.tool-move .efac,body.editing .store.picked,body.editing .efac.picked{cursor:move}
 body.splitting #edStat{display:none}
+#detail dl.dgrid{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0;align-items:baseline}#detail dl.dgrid dt{color:#888;font-size:11px;white-space:nowrap}#detail dl.dgrid dd{margin:0;word-break:break-all}
+#detail .dcode{font-size:11px;color:#555;margin-left:2px}#detail .dsub{font-size:10.5px;color:#888}
 `;document.head.appendChild(st);
 const H=(html)=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content};
 const header=document.querySelector('header'),mainEl=document.querySelector('main');
@@ -263,7 +265,9 @@ if(typeof layout==='function'){
     flw.forEach(o=>{if(o.isB){fixed.push(o.box);o.show=true;return}
       const fs=Math.max(o.fs0,FLOWPX*u);o.fs=fs;o.show=false;
       for(const[dx,dy]of NUD){const x=o.x0+dx*fs,y=o.y0+dy*fs,b=boxAt(o.m,fs,x,y);if(!ST.some(s=>ov(s._b,b))&&!fixed.some(a=>ov(a,b))){fixed.push(b);o.x=x;o.y=y;o.show=true;break}}});
-    ST.slice().sort((a,b)=>b._pc.area-a._pc.area).forEach(s=>{const want=MINPX*u;if(s.fitSize>=want||s.lpos)return;  /* 직접 옮긴 라벨(lpos)은 그 자리 유지 */
+    ST.slice().sort((a,b)=>b._pc.area-a._pc.area).forEach(s=>{const want=MINPX*u;if(s.fitSize>=want)return;
+      /* 직접 옮긴 라벨(lpos): 자리는 그대로 두고, 글자 크기는 다른 라벨처럼 화면 최소 크기까지 키워 옮기기 전과 같은 크기로 보이게 한다 */
+      if(s.lpos){s._fs=want;s._b=boxAt(s._mt,want,s._x,s._y);return}
       const obs=ST.filter(o=>o!==s).map(o=>o._b).concat(fixed),free=b=>!obs.some(a=>ov(a,b));
       const pts=[s.lpt].concat(s._pc.pts).sort((p,q)=>Math.hypot(p[0]-s.lpt[0],p[1]-s.lpt[1])-Math.hypot(q[0]-s.lpt[0],q[1]-s.lpt[1]));
       for(const f of [1,0.85,0.72,0.6]){const fs=Math.max(s.fitSize,want*f);if(fs<=s.fitSize&&f<1)break;
@@ -277,10 +281,21 @@ if(typeof layout==='function'){
 Plan.setShowCode=on=>{Plan.showCode=on;Plan.stores.forEach(s=>(s.shop_cd||s.edited)&&s.layoutLabel())};
 ['rings','edited','lpos'].forEach(k=>SKIP.add(k));LABEL.from='원본 매장';LABEL.label='도면 표시명';
 /* 상세 정보: 기본 보기와 아이디어 모드가 같은 형식을 쓴다(면적 비공개 공간은 면적만 '비공개') */
-const detailHTML=s=>{const fac=s.type&&s.type!=='매장';return `<dl><dt>${fac?'시설':'매장'}</dt><dd><b>${String(s.name??s.space_nm).replace(/[&<]/g,c=>c==='&'?'&amp;':'&lt;')}</b></dd>`+
-  Object.entries(s).filter(([k])=>!SKIP.has(k)&&!(fac&&k==='shop_cd')).map(([k,v])=>`<dt>${LABEL[k]||k}</dt><dd>${v??(k==='shop_cd'?'(미배정)':'-')}</dd>`).join('')+'</dl>'};
+/* 상세 정보(기본 보기·아이디어 모드 공통, 면적 비공개 공간은 면적만 '비공개'). 관련 항목은 한 줄로 묶어 공간을 줄인다
+   - 매장명 + 매장코드 / 공간명 + (공간ID) / 공간유형 · 면적(평) / 그 밖의 항목(도면 표시명·원본·외부 연동 값)은 아래에 이어서 */
+const DONE=new Set(['name','shop_cd','space_id','space_nm','type','area_m2','area_py','area_note']);
+const dEsc=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const detailHTML=s=>{const fac=s.type&&s.type!=='매장';
+  const area=s.area_note==='비공개'?'면적 비공개':s.area_m2!=null?`${s.area_m2}㎡${s.area_py!=null?` (${s.area_py}평)`:''}`:'면적 -';
+  const rows=[[fac?'시설':'매장',`<b>${dEsc(s.name??s.space_nm)}</b>`+(fac?'':` <span class="dcode">${s.shop_cd?dEsc(s.shop_cd):'(미배정)'}</span>`)],
+    ['공간',`${dEsc(s.space_nm)} <small class="dsub">(${dEsc(s.space_id)})</small>`],
+    ['유형·면적',`${dEsc(s.type)} · ${area}`]];
+  Object.entries(s).forEach(([k,v])=>{if(DONE.has(k)||SKIP.has(k)||k[0]==='_'||typeof v==='function'||(v&&typeof v==='object'))return;rows.push([LABEL[k]||k,dEsc(v??'-')])});
+  return '<dl class="dgrid">'+rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')+'</dl>'};
 {const rd=s=>{if(!s)return;detail.innerHTML=detailHTML(s)};
-  if(Plan.handlers.select)Plan.handlers.select=Plan.handlers.select.map(f=>f===renderDetail?rd:f)}
+  if(Plan.handlers.select)Plan.handlers.select=Plan.handlers.select.map(f=>f===renderDetail?rd:f);
+  /* store.update(...) 후 다시 그릴 때도 같은 형식 */
+  if(Plan.handlers.update)Plan.handlers.update=[s=>{if(Plan.selected===s&&!ED.mode)rd(s);else if(ED.mode&&ED.picked.includes(s.id))refreshPick()}]}
 
 /* ----- 3) 아이디어 모드 기능 ----- */
 
