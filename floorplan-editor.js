@@ -1,13 +1,13 @@
 /*!
  * floorplan-editor.js  v20261108
- * 수정: 2026-11-08 22:10:08 (KST) — 고칠 때마다 이 시각을 바꾼다
+ * 수정: 2026-11-09 00:38:17 (KST) — 고칠 때마다 이 시각을 바꾼다
  * 신세계 공간관리시스템 도면(HTML) 아이디어 모드 드라이버
  *  - 선택(클릭·Ctrl+클릭) · 이동 · 합치기 · 분할 · 모양 편집 · 삭제 · 이름/도면 표시명 변경 · 매장 삽입 · 맞춤 안내선 · 되돌리기
  *  - 시설(계단·엘리베이터 포함)도 아이디어 모드에서 선택·편집, 면적 비공개 매장은 면적을 보이지 않음
  *  - 우측 아이콘 도구 막대 · 매장 정보 패널 접기(기본 접힘) · 도면 하단 유출 경고
  *  - 편집 도면 저장(HTML) · 불러오기(JSON) · CSV/JSON · PowerPoint(도형) 저장
- * 사용: 도면 HTML의 본문 스크립트(SPACES·FLOW·Store·Plan) 뒤에 넣는다.
- *   <script src="https://cdn.jsdelivr.net/gh/starroooot/report-styles@main/floorplan-editor.js?v=20261106"></script>
+ * 사용: 도면 HTML의 본문 스크립트(SPACES·FLOW·Store·Plan) 뒤에 넣는다. 도면 폴더(src/stores/{점포}/floorplans/{건물}/) 기준 상대 경로:
+ *   <script src="../../../../editor/floorplan-editor.js"></script>
  * 편집 도면 저장(HTML)을 쓰려면 본문 스크립트 앞에 아래 두 줄이 있어야 한다.
  *   <script id="snap">window.__SRC=document.documentElement.outerHTML;</script>
  *   <script id="saved-state" type="application/json">null</script>
@@ -98,7 +98,6 @@ const upd=header.querySelector('.upd');header.insertBefore(H("<button id=\"edTog
 document.getElementById('edToggle').after(H('<button id="hdPPT" title="지금 화면의 도면을 PowerPoint(도형)로 내보내기">PPT로 내보내기</button>'));
 const tag0=header.querySelector('.tag');tag0?tag0.after(H("<span id=\"planTag\" class=\"tag\" style=\"display:none;border-color:#1d5bd8;color:#1d5bd8\"></span>")):header.querySelector('h1').after(H("<span id=\"planTag\" class=\"tag\" style=\"display:none;border-color:#1d5bd8;color:#1d5bd8\"></span>"));
 mainEl.before(H("<div id=\"shapebar\">\n<span class=\"grp\"><b style=\"color:var(--accent)\">모양 편집</b>&nbsp;<b id=\"shName\"></b>&nbsp;<span id=\"shArea\"></span></span>\n<span class=\"grp c\">● 꼭짓점 끌기(Shift: 수평·수직) · ■ 변 끌어 벽 밀기 · ■ 더블클릭: 꼭짓점 추가 · ● 우클릭: 꼭짓점 삭제</span>\n<span class=\"grp\" id=\"shEdge\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"shSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"shUndo\" disabled title=\"Ctrl+Z\">↶ 한 단계 취소</button><button id=\"shOk\" class=\"pri\" title=\"Enter\">확정</button><button id=\"shCancel\" title=\"Esc\">취소</button></span>\n<span id=\"shWarn\"></span>\n</div>\n<div id=\"insbar\">\n<span class=\"grp\"><b style=\"color:#1a7f37\">매장 삽입</b>&nbsp;<label><input type=\"radio\" name=\"insMode\" value=\"rect\" checked> 사각형</label><label><input type=\"radio\" name=\"insMode\" value=\"poly\"> 다각형</label></span>\n<span class=\"grp\">매장명 <input id=\"insName\" value=\"신규 매장\" style=\"width:120px;height:26px\"> 분류 <select id=\"insGroup\" style=\"height:26px\"><option value=\"rtw\">패션(RTW)</option><option value=\"lux\">명품</option><option value=\"jw\">주얼리·시계</option><option value=\"acc\">잡화</option><option value=\"etc\" selected>기타</option><option value=\"vacant\">공실</option></select> <span class=\"c\">매장코드: 미배정</span></span>\n<span class=\"grp\" id=\"insArea\"></span>\n<span class=\"grp\"><label><input type=\"checkbox\" id=\"insSnap\" checked> 맞춤 안내선(주변 벽·매장 크기)</label></span>\n<span class=\"grp\"><button id=\"insBack\" disabled title=\"Backspace\">↶ 점 취소</button><button id=\"insOk\" class=\"pri\" disabled title=\"Enter\">삽입</button><button id=\"insCancel\" title=\"Esc\">취소</button></span>\n<span id=\"insWarn\"></span>\n</div>"));
-const listH2=[...document.querySelectorAll('aside h2')].find(h=>/매장 목록/.test(h.textContent));
 {const tb=list.closest('table');if(tb&&!document.getElementById('listWrap')){const w=document.createElement('div');w.id='listWrap';tb.before(w);w.appendChild(tb)}}/* 정보 패널 순서: 매장 정보 → 매장 목록 → 변경 내역(기본 접힘, 제목을 누르면 펼침) */
 document.querySelector('aside').appendChild(H("<div id=\"logbox\"><h2 id=\"logHead\" title=\"펼치기/접기\"><span id=\"logArrow\">▸</span> 변경 내역 <span id=\"edCount\" class=\"c\"></span></h2><ul id=\"edLog\"></ul></div>"));
 document.getElementById('logHead').onclick=()=>{const b=document.getElementById('logbox'),o=!b.classList.contains('open');b.classList.toggle('open',o);document.getElementById('logArrow').textContent=o?'▾':'▸'};
@@ -751,7 +750,6 @@ function drawHandles(){SHL.innerHTML='';const S=window.SHAPE;if(!S)return;const 
   drawSmart(SHL,S,u)}
 
 /* 스냅: 10cm 격자 + 주변 매장·시설·자기 꼭짓점의 x/y에 붙인다 */
-function snapVal(v,cands,th){let best=Math.round(v/GRID)*GRID,bd=th;cands.forEach(c=>{const dd=Math.abs(c-v);if(dd<bd){bd=dd;best=c}});return best}
 /* lock: 'x'면 x 고정(수직 이동), 'y'면 y 고정(수평 이동) — Shift */
 function snapPt(x,y,skip,lock,base){const S=window.SHAPE;S.guides=[];S.tags=[];
   if(lock==='x')x=base[0];if(lock==='y')y=base[1];
@@ -987,7 +985,7 @@ function mvDown(e){if(!ED.mode||window.SHAPE||window.INS||ED.splitting||e.button
   MV={ids,items,pts,o:toO(e.clientX,e.clientY),sx:e.clientX,sy:e.clientY,moved:false,dx:0,dy:0,others,snapPts,guides:[],tags:[],hits:[]}}
 [SL,document.getElementById('fac-layer'),document.getElementById('flow-base')].forEach(L=>L.addEventListener('pointerdown',mvDown));
 function mvShift(G,dx,dy){return G.map(p=>p.map(r=>r.map(q=>[q[0]+dx,q[1]+dy])))}
-function mvCheck(){if(!MV)return;MV.hits=[];const seen=new Map();
+function mvCheck(){if(!MV)return;MV.hits=[];
   MV.items.forEach(it=>{const G=mvShift(it.G,MV.dx,MV.dy),gb=bboxOf(G);
     MV.others.forEach(o=>{if(!bbOverlap(gb,o.bb))return;let I=[];try{I=PC.intersection(G,o.geom)}catch(e){}const a=areaOf(I);if(a>0.01)MV.hits.push({name:o.name,a:r2(a),inter:I})})})}
 const mvDir=(dx,dy)=>[dx?`${dx>0?'오른쪽':'왼쪽'} ${Math.abs(Math.round(dx))}cm`:'',dy?`${dy>0?'위':'아래'} ${Math.abs(Math.round(dy))}cm`:''].filter(Boolean).join(' · ')||'제자리';
