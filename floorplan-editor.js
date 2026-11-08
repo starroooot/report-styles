@@ -1,6 +1,6 @@
 /*!
  * floorplan-editor.js  v20261108
- * 수정: 2026-11-08 21:56:17 (KST) — 고칠 때마다 이 시각을 바꾼다
+ * 수정: 2026-11-08 22:10:08 (KST) — 고칠 때마다 이 시각을 바꾼다
  * 신세계 공간관리시스템 도면(HTML) 아이디어 모드 드라이버
  *  - 선택(클릭·Ctrl+클릭) · 이동 · 합치기 · 분할 · 모양 편집 · 삭제 · 이름/도면 표시명 변경 · 매장 삽입 · 맞춤 안내선 · 되돌리기
  *  - 시설(계단·엘리베이터 포함)도 아이디어 모드에서 선택·편집, 면적 비공개 매장은 면적을 보이지 않음
@@ -1063,16 +1063,21 @@ function drawPlan(pptx,slide,stores,box,opt={}){
     slide.addShape(pptx.ShapeType.custGeom,Object.assign({x:x0,y:y0,w:Math.max(x1-x0,0.01),h:Math.max(y1-y0,0.01),points},o))};
   /* 1) 시설(매장 아래) */
   /* opt.fac=false: 시설 제외 / opt.flow=false: 이동 시설(에스컬레이터·보이드·엘리베이터) 제외. 엘리베이터는 화면과 같이 이동 시설로 본다 */
-  const showFac=f=>IS_MOVEF(f)?opt.flow!==false:opt.fac!==false,FACS=opt.facs||state.facs;
+  const showFac=f=>IS_MOVEF(f)?opt.flow!==false:opt.fac!==false,FACS=(opt.facs||state.facs).filter(f=>!(GENESC.has(f.space_id)&&!f.edited));   /* ESC 공간으로 그린 에스컬레이터는 아래 에스컬레이터로 따로 그린다 */
   FACS.filter(showFac).forEach(f=>poly(geomOf(f),{fill:{color:f.fill?hex(f.fill):FAC_FILL(f)},line:changed.has(f.space_id)?{color:'B4005A',width:1,dashType:'dash'}:{color:'888888',width:0.25},objectName:f.name||f.space_nm}));
   /* 시설 이름(일정 크기 이상만, 회색 작은 글씨) */
   if(opt.facLabel)FACS.filter(showFac).forEach(f=>{const G=geomOf(f);if(areaOf(G)<12)return;const tmp=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v)},svg),L=labelPoint(tmp,f.v);tmp.remove();
-    const t=f.label||(IS_ELEV(f)?'EV':dispName(f)),fs=Math.max(4.5,Math.min(7,L.r*2*sc*72/Math.max(emw(t),1)*0.9))*(f.lscale||1),lp=f.lpos?T(f.lpos):L.pt,cx=ox+(lp[0]-ext[0])*sc,cy=oy+(lp[1]-ext[1])*sc,tw=emw(t)*fs/72*1.1+0.05;
+    const t=f.label||(IS_ELEV(f)?'EV':COVESC.has(f.space_id)?'':dispName(f));if(!t)return;const fs=Math.max(4.5,Math.min(7,L.r*2*sc*72/Math.max(emw(t),1)*0.9))*(f.lscale||1),lp=f.lpos?T(f.lpos):L.pt,cx=ox+(lp[0]-ext[0])*sc,cy=oy+(lp[1]-ext[1])*sc,tw=emw(t)*fs/72*1.1+0.05;
     slide.addText(t,{x:cx-tw/2,y:cy-fs/72*0.75,w:tw,h:fs/72*1.5,fontFace:PFONT,fontSize:Math.round(fs*2)/2,bold:f.lbold===undefined?IS_ELEV(f):f.lbold,italic:!!f.litalic,color:f.lcolor?hex(f.lcolor):'666666',align:'center',valign:'middle',margin:0,wrap:false,objectName:'시설 '+t})});
   if(opt.flow!==false)FLOW.voids.forEach(v=>{const Q=v.map(P),x0=Math.min(...Q.map(p=>p[0])),y0=Math.min(...Q.map(p=>p[1])),x1=Math.max(...Q.map(p=>p[0])),y1=Math.max(...Q.map(p=>p[1]));
     slide.addText('OPEN',{shape:pptx.ShapeType.rect,x:x0,y:y0,w:x1-x0,h:y1-y0,fill:{color:'FFFFFF'},line:{color:'7A8794',width:0.75,dashType:'dash'},fontFace:PFONT,fontSize:7,color:'7A8794',align:'center',valign:'middle',margin:0,objectName:'보이드'})});
   if(opt.flow!==false)FLOW.esc.forEach(e=>{const a=P([e.b[0],e.b[3]]),b=P([e.b[2],e.b[1]]);
     slide.addText('E/S'+(e.dir==='UP'?' ▲':e.dir==='DN'?' ▼':''),{shape:pptx.ShapeType.rect,x:a[0],y:a[1],w:b[0]-a[0],h:b[1]-a[1],fill:{color:'FFFFFF'},line:{color:'3A4A5C',width:0.5},fontFace:PFONT,fontSize:6,bold:true,color:'1F2D3D',align:'center',valign:'middle',margin:0,objectName:'에스컬레이터'})});
+  /* CAD 그림이 없어 ESC·무빙워크 공간 모양으로 그린 에스컬레이터: 화면과 같이 흰 바탕 + 진한 테두리 + E/S(무빙워크) 글자 */
+  if(opt.flow!==false)(opt.facs||state.facs).filter(f=>GENESC.has(f.space_id)&&!f.edited).forEach(f=>{const G=geomOf(f);
+    poly(G,{fill:{color:'FFFFFF'},line:{color:'3A4A5C',width:0.5},objectName:'에스컬레이터 '+(f.name||f.space_nm)});
+    const tmp=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v)},svg),L=labelPoint(tmp,f.v);tmp.remove();const t=KIND(f)==='walk'?'무빙워크':'E/S',cx=ox+(L.pt[0]-ext[0])*sc,cy=oy+(L.pt[1]-ext[1])*sc,tw=emw(t)*6/72*1.2+0.05;
+    slide.addText(t,{x:cx-tw/2,y:cy-6/72*0.75,w:tw,h:6/72*1.5,fontFace:PFONT,fontSize:6,bold:true,color:'1F2D3D',align:'center',valign:'middle',margin:0,wrap:false,objectName:'에스컬레이터 글자'})});
   /* 2) 매장(큰 매장 먼저 → 작은 매장이 위에) */
   const list=stores.map(d=>({d,G:geomOf(d)})).map(o=>(o.a=areaOf(o.G),o)).sort((p,q)=>q.a-p.a);
   list.forEach(({d,G})=>{const ch=changed.has(d.space_id);
