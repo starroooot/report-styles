@@ -391,7 +391,8 @@ const sumTxt=P=>{if(P.some(hid))return '합계 비공개(면적 비공개 공간
 /* 엘리베이터·계단(계단실 포함)은 이동 시설: 매장 아래 flow-base에 그리고 '이동 시설' 체크박스로 켜고 끈다 */
 const IS_STAIR=f=>typeof KIND==='function'?KIND(f)==='stair':/계단/.test(f.space_nm||'')||/계단/.test(f.name||'');   /* 도면에 KIND(이동 시설 구분)가 있으면 그 규칙을 쓴다 */
 const GENESC=new Set(SPACES.filter(s=>s.gen).map(s=>s.space_id));   /* 도면이 ESC 공간으로 그린 에스컬레이터: 시설로 다시 그리지 않는다 */
-const IS_MOVEF=f=>IS_ELEV(f)||IS_STAIR(f);
+const COVESC=new Set(SPACES.filter(s=>s.cov).map(s=>s.space_id));   /* CAD 에스컬레이터 그림이 덮는 ESC 공간: 이동 시설, 이름 글자 없음 */
+const IS_MOVEF=f=>IS_ELEV(f)||IS_STAIR(f)||COVESC.has(f.space_id);
 const FL_=document.getElementById('fac-layer'),FT_=document.getElementById('fac-label'),FB_=document.getElementById('flow-base'),FW_=document.getElementById('flow-layer');
 SPACES.forEach(s=>{if(s.type!=='매장'&&s.node){s.node.remove()}});FT_.innerHTML='';
 [...FW_.querySelectorAll('text')].filter(t=>t.textContent==='EV'&&t.getAttribute('fill')==='#2f4f7a').forEach(t=>t.remove());
@@ -405,7 +406,7 @@ function drawFacs(){const want=new Map(state.facs.map(f=>[f.space_id,f]));
   state.facs.forEach(f=>{if(FACN.has(f.space_id)||(GENESC.has(f.space_id)&&!f.edited))return;const ev=IS_ELEV(f),mv=IS_MOVEF(f);
     const node=el('path',{d:f.rings?ringsPath(f.rings):pathOf(f.v),class:facCls(f)+' efac'+(f.edited?' edited':''),'data-fid':f.space_id},mv?FB_:FL_);if(f.fill)node.style.fill=f.fill;
     const L=labelPoint(node,f.v),size=Math.min(70,Math.max(22,L.r*0.55)),lp=f.lpos?T(f.lpos):L.pt;
-    const t=txt(mv?FW_:FT_,lp[0],lp[1],f.label||(ev?'EV':dispName(f)),(ev?Math.max(size,40):size)*(f.lscale||1),ev?700:0,ev?'#2f4f7a':'#555');t.dataset.a=L.w*L.h;t.dataset.lid=f.space_id;t.classList.add('efac-lbl');applyLStyle(t,f,ev?700:400);
+    const t=txt(mv?FW_:FT_,lp[0],lp[1],f.label||(ev?'EV':COVESC.has(f.space_id)?'':dispName(f)),(ev?Math.max(size,40):size)*(f.lscale||1),ev?700:0,ev?'#2f4f7a':'#555');t.dataset.a=L.w*L.h;t.dataset.lid=f.space_id;t.classList.add('efac-lbl');applyLStyle(t,f,ev?700:400);
     node.addEventListener('click',e=>{if(!ED.mode)return;e.stopPropagation();Plan.pick(f.space_id,e)});
     node.addEventListener('dblclick',e=>{if(!ED.mode)return;e.stopPropagation();renameItem(f.space_id)});
     node.addEventListener('mousemove',e=>Plan.tip(e,`${f.name||f.space_nm} · ${f.type}`+(f.edited?' · 편집':'')));node.addEventListener('mouseleave',()=>Plan.tip(null));
