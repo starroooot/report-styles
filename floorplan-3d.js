@@ -42,6 +42,7 @@ const css=document.createElement('style');css.id='fp3d-css';css.textContent=`
 #fp3d .vbar button:hover{background:#f0f0f0}
 #fp3d .hint{position:absolute;left:10px;bottom:8px;font-size:11px;color:#6b7480;pointer-events:none;z-index:3}
 #fp3d .msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#555;text-align:center;padding:20px;line-height:1.6}
+#fp3dBtn{display:inline-flex;align-items:center;gap:5px;font-weight:700}#fp3dBtn svg{width:16px;height:16px;flex:none}
 #fp3dBtn.on,#fp3dTb.on{background:#c8102e!important;color:#fff!important;border-color:#c8102e!important}
 #fp3dTb{font-size:11px;font-weight:800;letter-spacing:-.3px}
 #dtBtn{width:36px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;padding:0;flex:none}
@@ -66,7 +67,9 @@ host.appendChild(box);
 const labelsEl=box.querySelector('.lbls');
 
 /* 켜기/끄기 버튼: 헤더(#zoomctl)에 항상, 편집기 도구 막대(#tb)가 있으면 거기에도 */
-const btn=document.createElement('button');btn.type='button';btn.id='fp3dBtn';btn.textContent='3D';btn.title='이 층을 3D로 보기';
+/* 3D 버튼 아이콘(사용자 지정 SVG, 16×16, 글자색을 따름) */
+const ICON3D='<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M7.06179 11.6098C7.36645 11.6323 7.68239 11.6436 7.99833 11.6436C12.1055 11.6436 15.4342 10.0075 15.4342 7.99906C15.4342 5.9906 12.1055 4.35449 7.99833 4.35449C3.89113 4.35449 0.5625 5.97932 0.5625 7.99906C0.5625 8.57452 0.833304 9.12741 1.32978 9.6126" stroke="currentColor"/><path d="M0.246094 10.4699L3.05568 10.673L1.82578 8.14551L0.246094 10.4699Z" fill="currentColor"/><path d="M10.6968 12.9989C10.0311 14.4883 9.07197 15.4361 8.00004 15.4361C5.99158 15.4361 4.35547 12.1075 4.35547 8.00028C4.35547 3.89309 5.98029 0.564453 8.00004 0.564453C8.60935 0.564453 9.18481 0.869108 9.69256 1.41072" stroke="currentColor"/><path d="M8.2168 1.85075L10.6992 3.17092L10.5976 0.361328L8.2168 1.85075Z" fill="currentColor"/></svg>';
+const btn=document.createElement('button');btn.type='button';btn.id='fp3dBtn';btn.innerHTML=ICON3D+'<span>3D</span>';btn.title='이 층을 3D로 보기';
 (($('zoomctl'))||document.querySelector('header')).appendChild(btn);
 btn.onclick=()=>toggle();
 function addTbBtn(){const tb=$('tb');if(!tb||$('fp3dTb'))return;const g=document.createElement('div');g.className='g';
@@ -330,7 +333,7 @@ function loop(){if(!active){raf=0;return}raf=requestAnimationFrame(loop);tw&&tw(
     const bw=f.el.offsetWidth,bh=f.el.offsetHeight,b=[p[0]-bw/2,p[1]-bh/2,p[0]+bw/2,p[1]+bh/2];if(all.some(a=>ov(a,b))){f.el.style.display='none';return}all.push(b)})}
 
 /* ---------- 켜기/끄기 ---------- */
-function setBtns(on){btn.textContent='3D';btn.classList.toggle('on',on);const t=$('fp3dTb');t&&t.classList.toggle('on',on)}
+function setBtns(on){btn.classList.toggle('on',on);const t=$('fp3dTb');t&&t.classList.toggle('on',on)}
 function msg(t){let m=box.querySelector('.msg');if(!t){m&&m.remove();return}if(!m){m=document.createElement('div');m.className='msg';box.appendChild(m)}m.innerHTML=t}
 async function open(){
   if(active)return;
