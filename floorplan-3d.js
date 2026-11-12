@@ -1,6 +1,6 @@
 /*!
  * floorplan-3d.js  v20261112
- * 수정: 2026-11-12 (KST) — 고칠 때마다 이 시각을 바꾼다
+ * 수정: 2026-11-12 (KST) — 건물 3D 모형(Digital Twin) 버튼 추가(선이 옅어졌다 진해지는 모션 반복) — 고칠 때마다 이 시각을 바꾼다
  * 신세계 공간관리시스템 2D 도면(HTML)에 '층별 3D 보기'를 붙이는 스크립트
  *  - 도면 HTML 안의 데이터(SPACES·FLOW·Plan.stores)로 그 자리에서 3D 블록 모형을 만든다(별도 3D HTML 불필요)
  *  - 아이디어 모드(floorplan-editor.js)로 바꾼 배치·이름·채움색, 히트맵 색도 그대로 3D에 반영
@@ -44,6 +44,15 @@ const css=document.createElement('style');css.id='fp3d-css';css.textContent=`
 #fp3d .msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#555;text-align:center;padding:20px;line-height:1.6}
 #fp3dBtn.on,#fp3dTb.on{background:#c8102e!important;color:#fff!important;border-color:#c8102e!important}
 #fp3dTb{font-size:11px;font-weight:800;letter-spacing:-.3px}
+#dtBtn{width:36px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;padding:0;flex:none}
+#dtBtn:hover{background:#f1f6ff;border-color:#3b82f6}
+#dtBtn svg{width:24px;height:24px;fill:none;stroke:url(#dtGrad);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#dtBtn svg{animation:dtPulse 2.4s ease-in-out infinite}
+#dtBtn:hover svg{animation:none;opacity:1}
+@keyframes dtPulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){#dtBtn svg{animation:none}}
+#dtToast{position:fixed;top:56px;right:16px;z-index:50;background:#1f2d3d;color:#fff;font-size:13px;padding:9px 14px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .2s;pointer-events:none}
+#dtToast.show{opacity:1;transform:none}
 body.fp3d #plan{visibility:hidden}
 body.fp3d #tb .g.ed,body.fp3d #edToggle,body.fp3d #leakWarn,body.fp3d .pop{display:none!important}`;
 document.head.appendChild(css);
@@ -64,6 +73,22 @@ function addTbBtn(){const tb=$('tb');if(!tb||$('fp3dTb'))return;const g=document
   g.innerHTML='<button type="button" id="fp3dTb" class="tbtn" title="3D 보기 켜기/끄기">3D</button>';
   const z=$('tZin');z&&z.closest('.g')?z.closest('.g').after(g):tb.appendChild(g);$('fp3dTb').onclick=()=>toggle()}
 addTbBtn();
+
+/* 건물 3D 모형(Digital Twin) 버튼: 헤더 맨 오른쪽(도면 최종 변경일자 오른쪽).
+   건물 모형이 준비되면 window.FP3D_DT = 함수(도면 정보) 또는 주소(문자열)를 지정해 연결한다. 지정이 없으면 '준비 중' 안내 */
+/* [숨김 2026-11-12] 다시 살리려면 이 줄과 블록 끝의 주석 기호를 지운다
+{const hd=document.querySelector('header');
+ if(hd&&!$('dtBtn')){const b=document.createElement('button');b.type='button';b.id='dtBtn';b.title='건물 3D 모형(Digital Twin) 보기';
+  b.innerHTML='<svg viewBox="0 0 24 24"><defs><linearGradient id="dtGrad" gradientUnits="userSpaceOnUse" x1="3" y1="22" x2="21" y2="2"><stop offset="0" stop-color="#3b5bdb"/><stop offset="1" stop-color="#22b8e6"/></linearGradient></defs>'+
+   '<path d="M12 3.5L21 8l-9 4.5L3 8z"/><path d="M3 8v9l9 4.5 9-4.5V8M12 12.5v9"/><path d="M3 11.6l9 4.5 9-4.5"/>'+
+   [[12,3.5],[21,8],[3,8],[12,12.5],[3,17],[21,17],[12,21.5]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.25" fill="#fff"/>`).join('')+'</svg>';
+  hd.appendChild(b);
+  let tt=0;const toast=m=>{let t=$('dtToast');if(!t){t=document.createElement('div');t.id='dtToast';document.body.appendChild(t)}t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2200)};
+  b.onclick=()=>{const h=window.FP3D_DT;
+    if(typeof h==='function')return h({title:document.title,floor:(document.querySelector('header h1')||{}).textContent||''});
+    if(typeof h==='string'&&h)return window.open(h,'_blank');
+    toast('건물 3D 모형(Digital Twin)은 준비 중입니다.')}}}
+[숨김 끝] */
 
 /* ---------- 상태 ---------- */
 let active=false,ready=false,loading=null,raf=0;
