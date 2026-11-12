@@ -1,6 +1,6 @@
 /*!
  * floorplan-3d.js  v20261112
- * 수정: 2026-11-12 (KST) — 건물 3D 모형(Digital Twin) 버튼 추가(선이 옅어졌다 진해지는 모션 반복) — 고칠 때마다 이 시각을 바꾼다
+ * 수정: 2026-11-12 (KST) — 계단·엘리베이터를 건물 3D 모형(viewer-core)과 같은 표현으로 · Digital Twin 버튼(숨김) — 고칠 때마다 이 시각을 바꾼다
  * 신세계 공간관리시스템 2D 도면(HTML)에 '층별 3D 보기'를 붙이는 스크립트
  *  - 도면 HTML 안의 데이터(SPACES·FLOW·Plan.stores)로 그 자리에서 3D 블록 모형을 만든다(별도 3D HTML 불필요)
  *  - 아이디어 모드(floorplan-editor.js)로 바꾼 배치·이름·채움색, 히트맵 색도 그대로 3D에 반영
@@ -19,7 +19,7 @@ if(window.FP3D)return;
 if(typeof SPACES==='undefined'||typeof Plan==='undefined'){console.warn('floorplan-3d: 도면 데이터(SPACES·Plan)가 없어 3D 보기를 붙이지 않습니다');return}
 const CDN='https://cdn.jsdelivr.net/npm/three@0.147.0/';
 const LIB=Object.assign({three:CDN+'build/three.min.js',orbit:CDN+'examples/js/controls/OrbitControls.js'},window.FP3D_LIB||{});
-const H_STORE=3.0,H_FAC=2.4,H_PARENT=0.4;   /* 블록 높이(m). H_PARENT: 하위 매장을 품은 상위 공간은 낮은 판으로 깐다 */
+const H_STORE=3.0,H_FAC=2.4,H_PARENT=0.4,H_SHAFT=4.5;   /* H_SHAFT: 엘리베이터 유리 승강로 높이(층 높이) */   /* 블록 높이(m). H_PARENT: 하위 매장을 품은 상위 공간은 낮은 판으로 깐다 */
 const C3={lux:'#e9b98c',rtw:'#a9cf98',jw:'#bba6e3',acc:'#f2a97a',etc:'#a9c2e3',vacant:'#dfe3e8'};   /* 3D 기본색(2D 기본색보다 진하게) */
 const $=id=>document.getElementById(id);
 const chk=id=>{const e=$(id);return !e||e.checked};
@@ -182,15 +182,37 @@ function build(){
   const P3=(x,y,h=0)=>new T3.Vector3(x/100,h,-y/100);
 
   /* 시설: 엘리베이터·계단·에스컬레이터 자리는 이동 시설(2D와 같이 '이동 시설' 체크박스) */
+  const xtr=(pts,h)=>{const g=new T3.ExtrudeGeometry(new T3.Shape(pts.map(([x,y])=>new T3.Vector2(x,y))),{depth:h,bevelEnabled:false});g.rotateX(-Math.PI/2);return g};
+  const stairAng=pts=>{let best=null;for(let i=0;i<pts.length;i++){const[a,b]=pts[i],[c,d]=pts[(i+1)%pts.length];if(Math.hypot(c-a,d-b)<0.05)continue;const t=Math.atan2(d-b,c-a),co=Math.cos(t),si=Math.sin(t);
+      let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;pts.forEach(([x,y])=>{const u=x*co+y*si,v=-x*si+y*co;u0=Math.min(u0,u);u1=Math.max(u1,u);v0=Math.min(v0,v);v1=Math.max(v1,v)});
+      const ar=(u1-u0)*(v1-v0);if(!best||ar<best.ar-1e-6)best={ar,t}}return best?best.t%(Math.PI/2):0};
+  const stairGeo=pts=>{const t=stairAng(pts),co=Math.cos(t),si=Math.sin(t),Lp=pts.map(([x,y])=>[x*co+y*si,-x*si+y*co]);   /* 계단실 좌표로 돌려서 계산 */
+    const xs=Lp.map(p=>p[0]),ys=Lp.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),ax=x1-x0>=y1-y0;
+    const L=ax?x1-x0:y1-y0,W=ax?y1-y0:x1-x0,n=Math.max(4,Math.min(12,Math.round(L/0.45))),d=L/n,out=[xtr(pts,0.12)];   /* 바닥판 */
+    for(let i=0;i<n;i++){const h=0.12+(H_FAC-0.12)*(i+1)/n,c=(ax?x0:y0)+d*(i+0.5),cx=ax?c:(x0+x1)/2,cy=ax?(y0+y1)/2:c;
+      if(!inPoly(Lp,cx,cy))continue;const b=new T3.BoxGeometry(ax?d*0.96:W*0.9,h,ax?W*0.9:d*0.96);b.rotateY(t);b.translate(cx*co-cy*si,h/2,-(cx*si+cy*co));out.push(b)}
+    return out};
   const elev=f=>f.kind==='elev'||(f.kind===undefined&&/승강로|엘리베이|ELEV/i.test(f.space_nm||''));
   FP.forEach(({f,polys})=>{
     const outer=bigOuter(polys),name=(f.label||f.name||f.space_nm||'').replace(/^([A-Z]\d+|\d+F)_/,'');
     if(f.cov)return;   /* CAD 에스컬레이터 그림이 덮는 ESC 자리: 아래 에스컬레이터 상자로 그린다 */
     if(f.gen){const b=block(polys,0.9,0xaab4bf,1,0x3a4a5c);flowGroup.add(b.g);b.mesh.userData.fac=f;facPick.push({m:b.mesh,flow:true});
       const L=inner(outer,3);flowLabels.push({p:new T3.Vector3(L.pt[0],1.2,-L.pt[1]),t:f.kind==='walk'?'무빙워크':'E/S',c:''});return}
-    if(elev(f)){const b=block(polys,H_FAC,0x7fa6dc,1,0x3a5f8f);flowGroup.add(b.g);b.mesh.userData.fac=f;facPick.push({m:b.mesh,flow:true});
-      const L=inner(outer,2);flowLabels.push({p:new T3.Vector3(L.pt[0],H_FAC+0.3,-L.pt[1]),t:f.label||'EV',c:''});return}
+    /* 엘리베이터: 건물 3D 모형(viewer-core)과 같은 표현 — 층 높이 유리 승강로 + 안의 연한 청회색 카(승강로를 70%로 줄인 같은 모양) + 줄 */
+    if(elev(f)){const G=new T3.Group();flowGroup.add(G);
+      const sh=new T3.Mesh(xtr(outer,H_SHAFT),new T3.MeshLambertMaterial({color:0xbcd0e6,transparent:true,opacity:0.25,side:T3.DoubleSide,depthWrite:false}));G.add(sh);
+      G.add(new T3.LineSegments(new T3.EdgesGeometry(sh.geometry,20),new T3.LineBasicMaterial({color:0x93a9c4})));
+      const n=outer.length,mx=outer.reduce((t,p)=>t+p[0],0)/n,my=outer.reduce((t,p)=>t+p[1],0)/n;
+      const cg=xtr(outer.map(([x,y])=>[mx+(x-mx)*0.7,my+(y-my)*0.7]),2.3);cg.translate(0,0.6,0);
+      const car=new T3.Mesh(cg,new T3.MeshLambertMaterial({color:0xa9bdd6}));G.add(car);G.add(new T3.LineSegments(new T3.EdgesGeometry(cg,20),new T3.LineBasicMaterial({color:0x7d93ae})));
+      G.add(new T3.LineSegments(new T3.BufferGeometry().setFromPoints([new T3.Vector3(mx,2.9,-my),new T3.Vector3(mx,H_SHAFT,-my)]),new T3.LineBasicMaterial({color:0x1f2f45})));   /* 줄 */
+      [sh,car].forEach(m=>{m.userData.fac=f;facPick.push({m,flow:true})});
+      flowLabels.push({p:new T3.Vector3(mx,H_SHAFT+0.3,-my),t:f.label||'EV',c:''});return}
     const stair=f.kind==='stair';
+    /* 계단: viewer-core와 같은 표현 — 얇은 바닥판 + 계단실 방향(최소 외접 사각형)으로 올라가는 단(약 0.45m 간격, 4~12단) */
+    if(stair){const G=new T3.Group();flowGroup.add(G);const m=new T3.MeshLambertMaterial({color:f.fill||0xcdbfa8}),lm=new T3.LineBasicMaterial({color:0x8a7a62});
+      stairGeo(outer).forEach(g=>{const ms=new T3.Mesh(g,m);ms.userData.fac=f;facPick.push({m:ms,flow:true});G.add(ms);G.add(new T3.LineSegments(new T3.EdgesGeometry(g,20),lm))});
+      const L=inner(outer,emw(name));facLabels.push({x:L.pt[0],y:L.pt[1],fit:L.fit,t:name,a:L.bb,flow:true});return}
     const col=f.fill||(stair?'#b9bec6':f.type==='이동공간'||f.type==='후방동선'?'#e4e6ea':/서비스|라운지|사무실/.test(f.type||'')?'#dbe4ea':'#c9cdd3');
     const b=block(polys,stair?H_FAC:H_FAC,col,1,0x888888);(stair?flowGroup:facGroup).add(b.g);b.mesh.userData.fac=f;facPick.push({m:b.mesh,flow:stair});
     const L=inner(outer,emw(name));facLabels.push({x:L.pt[0],y:L.pt[1],fit:L.fit,t:name,a:L.bb,flow:stair})});
