@@ -66,13 +66,13 @@ host.appendChild(box);
 const labelsEl=box.querySelector('.lbls');
 
 /* 켜기/끄기 버튼: 헤더(#zoomctl)에 항상, 편집기 도구 막대(#tb)가 있으면 거기에도 */
-const btn=document.createElement('button');btn.type='button';btn.id='fp3dBtn';btn.textContent='3D 보기';btn.title='이 층을 3D로 보기';
+const btn=document.createElement('button');btn.type='button';btn.id='fp3dBtn';btn.textContent='3D';btn.title='이 층을 3D로 보기';
 (($('zoomctl'))||document.querySelector('header')).appendChild(btn);
 btn.onclick=()=>toggle();
 function addTbBtn(){const tb=$('tb');if(!tb||$('fp3dTb'))return;const g=document.createElement('div');g.className='g';
   g.innerHTML='<button type="button" id="fp3dTb" class="tbtn" title="3D 보기 켜기/끄기">3D</button>';
   const z=$('tZin');z&&z.closest('.g')?z.closest('.g').after(g):tb.appendChild(g);$('fp3dTb').onclick=()=>toggle()}
-addTbBtn();
+/* addTbBtn();  좌측 도구 막대의 3D 버튼은 쓰지 않는다(헤더 버튼만) */
 
 /* 건물 3D 모형(Digital Twin) 버튼: 헤더 맨 오른쪽(도면 최종 변경일자 오른쪽).
    건물 모형이 준비되면 window.FP3D_DT = 함수(도면 정보) 또는 주소(문자열)를 지정해 연결한다. 지정이 없으면 '준비 중' 안내 */
@@ -330,12 +330,12 @@ function loop(){if(!active){raf=0;return}raf=requestAnimationFrame(loop);tw&&tw(
     const bw=f.el.offsetWidth,bh=f.el.offsetHeight,b=[p[0]-bw/2,p[1]-bh/2,p[0]+bw/2,p[1]+bh/2];if(all.some(a=>ov(a,b))){f.el.style.display='none';return}all.push(b)})}
 
 /* ---------- 켜기/끄기 ---------- */
-function setBtns(on){btn.textContent=on?'2D 보기':'3D 보기';btn.classList.toggle('on',on);const t=$('fp3dTb');t&&t.classList.toggle('on',on)}
+function setBtns(on){btn.textContent='3D';btn.classList.toggle('on',on);const t=$('fp3dTb');t&&t.classList.toggle('on',on)}
 function msg(t){let m=box.querySelector('.msg');if(!t){m&&m.remove();return}if(!m){m=document.createElement('div');m.className='msg';box.appendChild(m)}m.innerHTML=t}
 async function open(){
   if(active)return;
   if(document.body.classList.contains('editing')){const t=$('edToggle');t&&t.click()}   /* 아이디어 모드는 끄고 3D로 */
-  active=true;document.body.classList.add('fp3d');setBtns(true);addTbBtn();box.style.display='block';place();Plan.tip(null);
+  active=true;document.body.classList.add('fp3d');setBtns(true);box.style.display='block';place();Plan.tip(null);
   if(!ready){msg('3D 모형을 준비하는 중…');
     try{await loadLib()}catch(e){msg('3D 라이브러리(three.js)를 불러오지 못했습니다.<br>인터넷(cdn.jsdelivr.net) 연결을 확인해 주세요.');return}
     if(!active)return;msg(null);initScene();place()}
