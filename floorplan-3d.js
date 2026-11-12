@@ -54,7 +54,7 @@ const css=document.createElement('style');css.id='fp3d-css';css.textContent=`
 #dtToast{position:fixed;top:56px;right:16px;z-index:50;background:#1f2d3d;color:#fff;font-size:13px;padding:9px 14px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .2s;pointer-events:none}
 #dtToast.show{opacity:1;transform:none}
 body.fp3d #plan{visibility:hidden}
-body.fp3d #tb .g.ed,body.fp3d #edToggle,body.fp3d #leakWarn,body.fp3d .pop{display:none!important}`;
+body.fp3d #tb .g.ed,body.fp3d #edToggle,body.fp3d #leakWarn,body.fp3d .pop,body.fp3d #hdPPT,body.fp3d #edPPT{display:none!important}   /* 3D 보기 중에는 아이디어 모드·PPT 내보내기(2D 전용)를 숨긴다 */`;
 document.head.appendChild(css);
 
 const plan=$('plan');const host=plan.parentNode;   /* 편집기가 있으면 #planRow, 없으면 #wrap */
